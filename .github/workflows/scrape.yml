@@ -1,0 +1,40 @@
+name: Scrape listings
+
+on:
+  schedule:
+    # 01:23 UTC = 09:23 MYT daily
+    - cron: "23 1 * * *"
+  workflow_dispatch:
+    inputs:
+      max_pages:
+        description: "Index pages per area"
+        default: "2"
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      # iBilik blocks some datacenter IPs. Probe first so a block fails loudly
+      # instead of silently scraping nothing — if this step keeps failing,
+      # run the scraper from a home machine instead (see README).
+      - name: Check iBilik reachability
+        run: |
+          code=$(curl -s -o /dev/null -w "%{http_code}" \
+            -A "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36" \
+            https://www.ibilik.com/locations/malaysia/kuala-lumpur/room-rentals)
+          echo "iBilik responded with HTTP $code"
+          [ "$code" = "200" ]
+
+      - name: Scrape
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: npm run scrape -- --max-pages=${{ github.event.inputs.max_pages || 2 }}

@@ -1,0 +1,37 @@
+/**
+ * Scraper configuration. Areas are iBilik location paths under
+ * https://www.ibilik.com/locations/malaysia/<area>/room-rentals
+ * Focused on corridors along the rail lines that reach Bandar Utama.
+ */
+export const IBILIK_AREAS = [
+  "selangor/petaling-jaya",
+  "selangor/bandar-utama",
+  "kuala-lumpur/ttdi",
+  "kuala-lumpur/damansara-heights",
+  "kuala-lumpur/bangsar",
+  "kuala-lumpur/kl-city-centre",
+  "kuala-lumpur/pasar-seni",
+  "kuala-lumpur/titiwangsa",
+  "kuala-lumpur/sentul",
+  "kuala-lumpur/jalan-ipoh",
+  "kuala-lumpur/kepong",
+  "kuala-lumpur/segambut",
+  "kuala-lumpur/cheras",
+  "kuala-lumpur/kuchai-lama",
+  "kuala-lumpur/wangsa-maju",
+];
+
+/** Index pages fetched per area per run (15 listings each, newest first). */
+export const MAX_PAGES_PER_AREA = 2;
+
+/** Listings seen more recently than this many hours skip the detail re-fetch. */
+export const DETAIL_REFRESH_HOURS = 20;
+
+/** A listing missing from its source for this many days is marked inactive. */
+export const STALE_AFTER_DAYS = 3;
+
+/** Milliseconds between outbound requests (plus jitter). */
+export const REQUEST_DELAY_MS = 1600;
+
+export const USER_AGENT =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
