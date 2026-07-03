@@ -134,6 +134,7 @@ export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGra
           onResetOffice={() => moveOffice(DEFAULT_OFFICE)}
           lineColors={lineColors}
           lineNames={lineNames}
+          onClose={() => setSidebarOpen(false)}
         />
       </div>
 

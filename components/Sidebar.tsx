@@ -30,6 +30,7 @@ interface Props {
   onResetOffice: () => void;
   lineColors: Record<string, string>;
   lineNames: Record<string, string>;
+  onClose: () => void;
 }
 
 export function Sidebar(p: Props) {
@@ -49,9 +50,18 @@ export function Sidebar(p: Props) {
           </h1>
           <p className="mt-0.5 text-[11px] text-faint">KL rentals by rail commute</p>
         </div>
-        <Link href="/admin" className="btn text-[12px]">
-          + Add listing
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href="/admin" className="btn text-[12px]">
+            + Add listing
+          </Link>
+          <button
+            className="btn px-2.5 md:hidden"
+            onClick={p.onClose}
+            aria-label="Show the map"
+          >
+            Map ›
+          </button>
+        </div>
       </header>
 
       {/* destination */}
