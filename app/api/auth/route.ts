@@ -1,20 +1,42 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sessionToken } from "@/lib/auth";
+import { hashPassword, sessionToken, signGuestToken } from "@/lib/auth";
+import { db } from "@/lib/db";
+
+const COOKIE_OPTS = {
+  httpOnly: true,
+  sameSite: "lax" as const,
+  secure: process.env.NODE_ENV === "production",
+  path: "/",
+};
 
 export async function POST(req: NextRequest) {
-  const { password } = await req.json();
+  const { username, password } = await req.json();
   const expected = process.env.SITE_PASSWORD;
   if (!expected) return NextResponse.json({ ok: true });
-  if (password !== expected) {
-    return NextResponse.json({ error: "Wrong password" }, { status: 401 });
+
+  // owner: password only
+  if (!username) {
+    if (password !== expected) {
+      return NextResponse.json({ error: "Wrong password" }, { status: 401 });
+    }
+    const res = NextResponse.json({ ok: true, role: "owner" });
+    res.cookies.set("stay_session", await sessionToken(expected), {
+      ...COOKIE_OPTS,
+      maxAge: 60 * 60 * 24 * 90,
+    });
+    return res;
   }
-  const res = NextResponse.json({ ok: true });
-  res.cookies.set("stay_session", await sessionToken(expected), {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    maxAge: 60 * 60 * 24 * 90, // 90 days
-    path: "/",
-  });
+
+  // guest: username + their own password
+  const creds = await db.getUserCreds(String(username).toLowerCase().trim());
+  if (!creds || (await hashPassword(String(password), creds.salt)) !== creds.hash) {
+    return NextResponse.json({ error: "Wrong username or password" }, { status: 401 });
+  }
+  const res = NextResponse.json({ ok: true, role: "guest" });
+  res.cookies.set(
+    "stay_guest",
+    await signGuestToken(String(username).toLowerCase().trim(), expected),
+    { ...COOKIE_OPTS, maxAge: 60 * 60 * 24 * 30 }
+  );
   return res;
 }

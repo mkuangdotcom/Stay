@@ -12,6 +12,7 @@ export default function LoginPage() {
 }
 
 function LoginForm() {
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -25,14 +26,14 @@ function LoginForm() {
     const res = await fetch("/api/auth", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ password }),
+      body: JSON.stringify({ username: username.trim() || undefined, password }),
     });
     setBusy(false);
     if (res.ok) {
       router.replace(params.get("from") ?? "/");
       router.refresh();
     } else {
-      setError("Wrong password");
+      setError(username.trim() ? "Wrong username or password" : "Wrong password");
     }
   }
 
@@ -44,9 +45,19 @@ function LoginForm() {
         </h1>
         <p className="mt-1 text-center text-[12px] text-faint">Private — enter the password</p>
         <input
+          type="text"
+          autoComplete="username"
+          className="field mt-5"
+          placeholder="Username — guests only, owner leaves empty"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          aria-label="Username (guests only)"
+        />
+        <input
           type="password"
           autoFocus
-          className="field mt-5"
+          autoComplete="current-password"
+          className="field mt-2"
           placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}

@@ -436,7 +436,102 @@ function Admin() {
           </tbody>
         </table>
       </section>
+
+      <GuestAccess />
     </div>
+  );
+}
+
+/* ----------------------- guest access ----------------------- */
+
+/** Owner hands out revocable username+password pairs (read-only site access). */
+function GuestAccess() {
+  const [users, setUsers] = useState<{ username: string; createdAt: string }[]>([]);
+  const [name, setName] = useState("");
+  const [pw, setPw] = useState("");
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const load = () =>
+    fetch("/api/users")
+      .then((r) => r.json())
+      .then((d) => setUsers(d.users ?? []))
+      .catch(() => {});
+  useEffect(() => {
+    load();
+  }, []);
+
+  async function add(e: React.FormEvent) {
+    e.preventDefault();
+    setMsg(null);
+    const res = await fetch("/api/users", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ username: name, password: pw }),
+    });
+    if (res.ok) {
+      setMsg(`Created "${name.toLowerCase().trim()}" — share the username + password.`);
+      setName("");
+      setPw("");
+      load();
+    } else {
+      setMsg((await res.json()).error ?? "Failed");
+    }
+  }
+
+  async function revoke(username: string) {
+    if (!confirm(`Revoke "${username}"? Their access stops within a minute.`)) return;
+    await fetch(`/api/users/${encodeURIComponent(username)}`, { method: "DELETE" });
+    load();
+  }
+
+  return (
+    <section className="mx-auto max-w-[1100px] px-5 pb-10">
+      <h2 className="text-[14px] font-semibold">Guest access ({users.length})</h2>
+      <p className="mt-1 text-[12px] text-faint">
+        Guests can browse everything but can’t edit listings or open this admin page.
+        Revoking kicks them out within a minute.
+      </p>
+      <form onSubmit={add} className="mt-3 flex flex-wrap items-center gap-2">
+        <input
+          className="field w-[180px]"
+          placeholder="username"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          aria-label="New guest username"
+        />
+        <input
+          className="field w-[200px]"
+          type="text"
+          placeholder="password (min 8 chars)"
+          value={pw}
+          onChange={(e) => setPw(e.target.value)}
+          aria-label="New guest password"
+        />
+        <button className="btn btn-accent" disabled={!name.trim() || pw.length < 8}>
+          Add guest
+        </button>
+        {msg && <span className="text-[12px] text-muted">{msg}</span>}
+      </form>
+      {users.length > 0 && (
+        <table className="mt-3 w-full max-w-[560px] text-[12px]">
+          <tbody>
+            {users.map((u) => (
+              <tr key={u.username} className="border-t border-edge/60">
+                <td className="py-2 font-mono">{u.username}</td>
+                <td className="py-2 text-faint">
+                  since {new Date(u.createdAt).toLocaleDateString("en-MY")}
+                </td>
+                <td className="py-2 text-right">
+                  <button className="text-bad hover:underline" onClick={() => revoke(u.username)}>
+                    Revoke
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </section>
   );
 }
 
