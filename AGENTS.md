@@ -20,6 +20,9 @@ Personal KL rental-finder map. See README.md for architecture and commands.
 - **Scraper etiquette is deliberate** (`scripts/config.ts`): ~1 req/1.6s + jitter,
   detail pages skipped if seen in the last 20h, OSRM capped at 1 req/s. Keep it that
   way — the sources and free routing servers are shared infrastructure.
+- **SpeedHome specifics**: 403s plain HTTP → Playwright; list-page `__NEXT_DATA__`
+  (`propertyList.content`) is fully structured — real coords, tenant gender,
+  `minRentalDuration` — zero detail fetches. `?page=N` pagination is flaky for KL.
 - **mudah.my specifics**: 403s plain HTTP → list pages load via headless Chromium
   (Playwright); all fields come from list-page `__NEXT_DATA__` so no detail-page
   requests are made; no coordinates published → pins are Nominatim area-centroids

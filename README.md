@@ -13,8 +13,9 @@ office (default: First Avenue, Bandar Utama — drag the yellow pin to change it
 - **Filters**: price, room type, source, max walk-to-rail, max door-to-door, keyword.
 - **Stats**: min/median/max, price histogram, median by nearest station — always for
   the current filter.
-- **Sources**: iBilik + mudah.my scrapers (automated; mudah pins are area-centroids —
-  the site publishes no coordinates); quick-add form for Facebook/WhatsApp/anything
+- **Sources**: iBilik, mudah.my (rooms + apartments; area-centroid pins) and
+  SpeedHome scrapers (automated daily); quick-add form for Facebook/WhatsApp/anything.
+  Listings carry tenant-gender restrictions and minimum-stay months where stated.
   at `/admin`. mudah.my & SpeedHome are phase 2.
 
 Everything runs on free tiers: Vercel Hobby, Supabase free, data.gov.my GTFS,
