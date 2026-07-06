@@ -9,6 +9,15 @@ const COOKIE_OPTS = {
   path: "/",
 };
 
+/** Sign out: clear both session cookies. */
+export async function DELETE() {
+  const res = NextResponse.json({ ok: true });
+  res.cookies.set("stay_session", "", { ...COOKIE_OPTS, maxAge: 0 });
+  res.cookies.set("stay_guest", "", { ...COOKIE_OPTS, maxAge: 0 });
+  res.cookies.set("stay_role", "", { ...COOKIE_OPTS, httpOnly: false, maxAge: 0 });
+  return res;
+}
+
 export async function POST(req: NextRequest) {
   const { username, password } = await req.json();
   const expected = process.env.SITE_PASSWORD;
@@ -22,6 +31,12 @@ export async function POST(req: NextRequest) {
     const res = NextResponse.json({ ok: true, role: "owner" });
     res.cookies.set("stay_session", await sessionToken(expected), {
       ...COOKIE_OPTS,
+      maxAge: 60 * 60 * 24 * 90,
+    });
+    // readable by the client so the UI can adapt (not a security boundary)
+    res.cookies.set("stay_role", "owner", {
+      ...COOKIE_OPTS,
+      httpOnly: false,
       maxAge: 60 * 60 * 24 * 90,
     });
     return res;
@@ -38,5 +53,10 @@ export async function POST(req: NextRequest) {
     await signGuestToken(String(username).toLowerCase().trim(), expected),
     { ...COOKIE_OPTS, maxAge: 60 * 60 * 24 * 30 }
   );
+  res.cookies.set("stay_role", "guest", {
+    ...COOKIE_OPTS,
+    httpOnly: false,
+    maxAge: 60 * 60 * 24 * 30,
+  });
   return res;
 }

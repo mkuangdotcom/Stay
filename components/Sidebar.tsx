@@ -35,6 +35,9 @@ interface Props {
   lineColors: Record<string, string>;
   lineNames: Record<string, string>;
   onClose: () => void;
+  isGuest: boolean;
+  loaded: boolean;
+  onSignOut: () => void;
 }
 
 export function Sidebar(p: Props) {
@@ -55,9 +58,18 @@ export function Sidebar(p: Props) {
           <p className="mt-0.5 text-[11px] text-faint">KL rentals by rail commute</p>
         </div>
         <div className="flex items-center gap-2">
-          <Link href="/admin" className="btn text-[12px]">
-            + Add listing
-          </Link>
+          {!p.isGuest && (
+            <Link href="/admin" className="btn text-[12px]">
+              + Add listing
+            </Link>
+          )}
+          <button
+            className="btn px-2 text-[11px] text-muted"
+            onClick={p.onSignOut}
+            title={p.isGuest ? "Signed in as guest" : "Sign out"}
+          >
+            {p.isGuest ? "Guest ⏻" : "⏻"}
+          </button>
           <button
             className="btn px-2.5 md:hidden"
             onClick={p.onClose}
@@ -255,14 +267,16 @@ export function Sidebar(p: Props) {
           <span className="label">
             {p.listings.length} of {p.totalCount}
           </span>
-          <button
-            className="chip"
-            data-on={f.favOnly}
-            onClick={() => set({ favOnly: !f.favOnly })}
-            title="Show only starred listings"
-          >
-            ★ Favs
-          </button>
+          {!p.isGuest && (
+            <button
+              className="chip"
+              data-on={f.favOnly}
+              onClick={() => set({ favOnly: !f.favOnly })}
+              title="Show only starred listings"
+            >
+              ★ Favs
+            </button>
+          )}
         </div>
         <div className="flex items-center gap-1.5">
           <select
@@ -296,13 +310,16 @@ export function Sidebar(p: Props) {
             selected={l.id === p.selectedId}
             onClick={() => p.onSelect(l.id)}
             onToggleFav={() => p.onToggleFav(l.id)}
+            showFav={!p.isGuest}
             lineColors={p.lineColors}
             lineNames={p.lineNames}
           />
         ))}
         {p.listings.length === 0 && (
           <p className="px-4 py-6 text-center text-[12px] text-faint">
-            Nothing matches. Loosen a filter, or add a listing yourself.
+            {p.loaded
+              ? "Nothing matches. Loosen a filter, or add a listing yourself."
+              : "Loading listings…"}
           </p>
         )}
       </div>
@@ -316,6 +333,7 @@ function ListingRow({
   selected,
   onClick,
   onToggleFav,
+  showFav,
   lineColors,
   lineNames,
 }: {
@@ -324,6 +342,7 @@ function ListingRow({
   selected: boolean;
   onClick: () => void;
   onToggleFav: () => void;
+  showFav: boolean;
   lineColors: Record<string, string>;
   lineNames: Record<string, string>;
 }) {
@@ -336,6 +355,7 @@ function ListingRow({
       aria-pressed={selected}
     >
       <div className="flex items-baseline justify-between gap-2">
+        {showFav && (
         <span
           role="button"
           tabIndex={0}
@@ -357,6 +377,7 @@ function ListingRow({
         >
           {l.isFav ? "★" : "☆"}
         </span>
+        )}
         <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium">
           {l.propertyName || l.title}
         </span>

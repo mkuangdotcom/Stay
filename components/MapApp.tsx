@@ -24,6 +24,8 @@ const ISO_BANDS = [30, 45, 60];
 
 export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGraphData }) {
   const [listings, setListings] = useState<Listing[]>([]);
+  const [listingsLoaded, setListingsLoaded] = useState(false);
+  const [isGuest, setIsGuest] = useState(false);
   const [walkCache, setWalkCache] = useState<WalkCache>({});
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const [sort, setSort] = useState<SortMode>("commute");
@@ -77,16 +79,23 @@ export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGra
     localStorage.setItem(OFFICE_KEY, JSON.stringify({ ...pos, label }));
   };
 
-  /* data */
+  /* data + role */
   useEffect(() => {
+    setIsGuest(document.cookie.includes("stay_role=guest"));
     fetch("/api/listings")
       .then((r) => r.json())
       .then((d) => {
         setListings(d.listings ?? []);
         setWalkCache(d.walkCache ?? {});
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setListingsLoaded(true));
   }, []);
+
+  const signOut = async () => {
+    await fetch("/api/auth", { method: "DELETE" }).catch(() => {});
+    window.location.href = "/login";
+  };
 
   /* commute engine — buses in the graph are opt-out via the map chip */
   const graph = useMemo(
@@ -189,6 +198,9 @@ export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGra
           lineColors={lineColors}
           lineNames={lineNames}
           onClose={() => setSidebarOpen(false)}
+          isGuest={isGuest}
+          loaded={listingsLoaded}
+          onSignOut={signOut}
         />
       </div>
 
@@ -236,6 +248,7 @@ export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGra
               onToggleFav={toggleFav}
               lineColors={lineColors}
               lineNames={lineNames}
+              isGuest={isGuest}
             />
           )}
         </div>
