@@ -173,23 +173,38 @@ function listingToRow(l: Partial<Listing>): Record<string, unknown> {
   return row;
 }
 
+/** PostgREST caps responses at 1000 rows; page through to get everything. */
+async function selectAll(
+  client: SupabaseClient,
+  table: string,
+  columns: string
+): Promise<Record<string, unknown>[]> {
+  const page = 1000;
+  const out: Record<string, unknown>[] = [];
+  for (let from = 0; ; from += page) {
+    const { data, error } = await client.from(table).select(columns).range(from, from + page - 1);
+    if (error) throw error;
+    out.push(...((data ?? []) as unknown as Record<string, unknown>[]));
+    if (!data || data.length < page) break;
+  }
+  return out;
+}
+
 function makeSupabaseDb(client: SupabaseClient): Db {
   return {
     async listListings() {
-      const { data, error } = await client.from("listings").select("*");
-      if (error) throw error;
-      return (data ?? []).map(rowToListing);
+      const data = await selectAll(client, "listings", "*");
+      return data.map(rowToListing);
     },
 
     async upsertListings(rows) {
       // fetch existing keys to detect price changes / preserve first_seen
-      const { data: existing, error: exErr } = await client
-        .from("listings")
-        .select("id, source, source_id, price_rm, first_seen");
-      if (exErr) throw exErr;
-      const byKey = new Map(
-        (existing ?? []).map((r) => [`${r.source}|${r.source_id}`, r])
-      );
+      const existing = (await selectAll(
+        client,
+        "listings",
+        "id, source, source_id, price_rm, first_seen"
+      )) as { id: string; source: string; source_id: string; price_rm: number; first_seen: string }[];
+      const byKey = new Map(existing.map((r) => [`${r.source}|${r.source_id}`, r]));
       const pricePoints: PricePoint[] = [];
       let created = 0,
         updated = 0;
@@ -242,10 +257,15 @@ function makeSupabaseDb(client: SupabaseClient): Db {
     },
 
     async getWalkCache() {
-      const { data, error } = await client.from("walk_cache").select("*");
-      if (error) throw error;
+      const data = (await selectAll(client, "walk_cache", "*")) as {
+        listing_id: string;
+        station_id: string;
+        walk_min: number;
+        meters: number;
+        routed: boolean;
+      }[];
       const cache: WalkCache = {};
-      for (const r of data ?? []) {
+      for (const r of data) {
         (cache[r.listing_id] ??= []).push({
           stationId: r.station_id,
           walkMin: r.walk_min,
@@ -278,9 +298,12 @@ function makeSupabaseDb(client: SupabaseClient): Db {
     },
 
     async listPriceHistory() {
-      const { data, error } = await client.from("price_history").select("*");
-      if (error) throw error;
-      return (data ?? []).map((r) => ({
+      const data = (await selectAll(client, "price_history", "*")) as {
+        listing_id: string;
+        price_rm: number;
+        seen_at: string;
+      }[];
+      return data.map((r) => ({
         listingId: r.listing_id,
         priceRm: r.price_rm,
         seenAt: r.seen_at,
