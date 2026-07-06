@@ -13,12 +13,14 @@ import { join } from "node:path";
 import {
   IBILIK_AREAS,
   MUDAH_AREAS,
+  SPEEDHOME_AREAS,
   MAX_PAGES_PER_AREA,
   DETAIL_REFRESH_HOURS,
   STALE_AFTER_DAYS,
 } from "./config";
 import { ibilik, type SourceAdapter } from "./adapters/ibilik";
 import { mudah } from "./adapters/mudah";
+import { speedhome } from "./adapters/speedhome";
 import type { Listing, WalkEntry } from "../lib/types";
 
 const args = new Map<string, string>(
@@ -28,14 +30,18 @@ const args = new Map<string, string>(
   })
 );
 
-const ADAPTERS: Record<string, SourceAdapter> = { ibilik, mudah };
-const AREA_DEFAULTS: Record<string, string[]> = { ibilik: IBILIK_AREAS, mudah: MUDAH_AREAS };
+const ADAPTERS: Record<string, SourceAdapter> = { ibilik, mudah, speedhome };
+const AREA_DEFAULTS: Record<string, string[]> = {
+  ibilik: IBILIK_AREAS,
+  mudah: MUDAH_AREAS,
+  speedhome: SPEEDHOME_AREAS,
+};
 
 async function main() {
   const { db, dbBackend } = await import("../lib/db");
   console.log(`Storage backend: ${dbBackend}`);
 
-  const sourceNames = (args.get("source") ?? "ibilik,mudah").split(",");
+  const sourceNames = (args.get("source") ?? "ibilik,mudah,speedhome").split(",");
   const maxPages = Number(args.get("max-pages") ?? MAX_PAGES_PER_AREA);
   const refreshAll = args.has("refresh");
   const dryRun = args.has("dry-run");
@@ -77,7 +83,7 @@ async function main() {
       failed = 0;
     for (const [sourceId, url] of found) {
       const prev = known.get(sourceId);
-      if (prev && !refreshAll && new Date(prev.lastSeen).getTime() > freshCutoff) {
+      if (prev && !refreshAll && !adapter.alwaysRefreshDetails && new Date(prev.lastSeen).getTime() > freshCutoff) {
         rows.push({ ...prev, lastSeen: now, isActive: true });
         skippedFresh++;
         continue;

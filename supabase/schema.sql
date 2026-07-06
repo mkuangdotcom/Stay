@@ -18,6 +18,8 @@ create table if not exists listings (
   photos         jsonb not null default '[]',
   furnished      text,
   available_from text,
+  gender         text,     -- 'female' | 'male' | null (no restriction stated)
+  min_term_months integer, -- minimum tenancy; 1 = short-term ok, null = not stated
   notes          text,
   first_seen     timestamptz not null,
   last_seen      timestamptz not null,

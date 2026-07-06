@@ -1,6 +1,7 @@
 import * as cheerio from "cheerio";
 import type { Listing, RoomType } from "../../lib/types";
 import { fetchText } from "../lib/http";
+import { extractGender, extractMinTerm } from "../lib/extract";
 
 const BASE = "https://www.ibilik.com";
 
@@ -10,6 +11,8 @@ export interface SourceAdapter {
   listPage(area: string, page: number): Promise<{ url: string; sourceId: string }[]>;
   /** Fetches and parses one listing's detail page. Returns null if unparseable. */
   fetchDetail(url: string, sourceId: string): Promise<Listing | null>;
+  /** True when fetchDetail costs no network request — skip the freshness shortcut. */
+  alwaysRefreshDetails?: boolean;
   /** Release resources (e.g. a headless browser) after the run. */
   close?(): Promise<void>;
 }
@@ -94,6 +97,8 @@ export const ibilik: SourceAdapter = {
       photos: [...photos],
       furnished: /fully\s?furnish/i.test(flat) ? "Fully furnished" : /partial(ly)?\s?furnish/i.test(flat) ? "Partially furnished" : null,
       availableFrom: null,
+      gender: extractGender(title),
+      minTermMonths: extractMinTerm(title),
       notes: null,
       firstSeen: now,
       lastSeen: now,

@@ -1,4 +1,4 @@
-import type { Listing, RoomType, Source } from "./types";
+import type { Gender, Listing, RoomType, Source } from "./types";
 import type { Commute } from "./railGraph";
 
 export interface FilterState {
@@ -12,6 +12,10 @@ export interface FilterState {
   activeOnly: boolean;
   /** only listings first seen within the last N days (null = any time) */
   maxAgeDays: number | null;
+  /** who is renting — hides listings restricted to the other gender */
+  tenant: Gender | null;
+  /** the longest commitment acceptable, in months (null = any) */
+  maxTermMonths: number | null;
 }
 
 export const DEFAULT_FILTERS: FilterState = {
@@ -24,6 +28,8 @@ export const DEFAULT_FILTERS: FilterState = {
   keyword: "",
   activeOnly: true,
   maxAgeDays: null,
+  tenant: null,
+  maxTermMonths: null,
 };
 
 export function applyFilters(
@@ -41,6 +47,9 @@ export function applyFilters(
     if (f.priceMax !== null && l.priceRm > f.priceMax) return false;
     if (f.roomTypes.length && !f.roomTypes.includes(l.roomType)) return false;
     if (f.sources.length && !f.sources.includes(l.source)) return false;
+    if (f.tenant && l.gender && l.gender !== f.tenant) return false;
+    if (f.maxTermMonths !== null && l.minTermMonths !== null && l.minTermMonths > f.maxTermMonths)
+      return false;
     const c = commutes.get(l.id);
     if (f.maxWalkMin !== null && (!c || c.walkMin > f.maxWalkMin)) return false;
     if (f.maxCommuteMin !== null && (!c || c.totalMin > f.maxCommuteMin)) return false;

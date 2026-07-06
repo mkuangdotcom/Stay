@@ -22,10 +22,25 @@ export const IBILIK_AREAS = [
 ];
 
 /**
- * mudah.my region paths (40 ads/page, newest first). Coordinates are
- * area-centroids — see scripts/adapters/mudah.ts.
+ * mudah.my paths (rooms: 40 ads/page; apartments: 15/page). Coordinates are
+ * area-centroids — see scripts/adapters/mudah.ts. The roommate_gender_id
+ * variants re-list the same ads filtered by Tenant Preference, which is how
+ * gender restrictions are learned without any detail-page fetches — keep the
+ * unfiltered path FIRST so the filtered passes only annotate.
  */
-export const MUDAH_AREAS = ["kuala-lumpur/rooms-for-rent", "selangor/rooms-for-rent"];
+export const MUDAH_AREAS = [
+  "kuala-lumpur/rooms-for-rent",
+  "kuala-lumpur/rooms-for-rent?roommate_gender_id=2",
+  "kuala-lumpur/rooms-for-rent?roommate_gender_id=1",
+  "kuala-lumpur/apartments-condos-for-rent",
+  "selangor/rooms-for-rent",
+  "selangor/rooms-for-rent?roommate_gender_id=2",
+  "selangor/rooms-for-rent?roommate_gender_id=1",
+  "selangor/apartments-condos-for-rent",
+];
+
+/** SpeedHome region slugs under speedhome.com/rent/<region> (40/page, structured). */
+export const SPEEDHOME_AREAS = ["kuala-lumpur", "petaling-jaya"];
 
 /** Skip mudah listings whose area centroid is further than this from KL. */
 export const MUDAH_MAX_KM_FROM_CENTER = 32;

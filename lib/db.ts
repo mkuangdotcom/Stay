@@ -142,6 +142,8 @@ function rowToListing(r: Record<string, unknown>): Listing {
     photos: (r.photos ?? []) as string[],
     furnished: r.furnished as string | null,
     availableFrom: r.available_from as string | null,
+    gender: (r.gender ?? null) as Listing["gender"],
+    minTermMonths: (r.min_term_months ?? null) as number | null,
     notes: r.notes as string | null,
     firstSeen: r.first_seen as string,
     lastSeen: r.last_seen as string,
@@ -166,6 +168,8 @@ function listingToRow(l: Partial<Listing>): Record<string, unknown> {
   if (l.photos !== undefined) row.photos = l.photos;
   if (l.furnished !== undefined) row.furnished = l.furnished;
   if (l.availableFrom !== undefined) row.available_from = l.availableFrom;
+  if (l.gender !== undefined) row.gender = l.gender;
+  if (l.minTermMonths !== undefined) row.min_term_months = l.minTermMonths;
   if (l.notes !== undefined) row.notes = l.notes;
   if (l.firstSeen !== undefined) row.first_seen = l.firstSeen;
   if (l.lastSeen !== undefined) row.last_seen = l.lastSeen;

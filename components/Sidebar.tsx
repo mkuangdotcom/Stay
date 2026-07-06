@@ -179,6 +179,33 @@ export function Sidebar(p: Props) {
           />
         </div>
 
+        <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+          <span className="label">I am</span>
+          {(["female", "male"] as const).map((g) => (
+            <button
+              key={g}
+              className="chip"
+              data-on={f.tenant === g}
+              onClick={() => set({ tenant: f.tenant === g ? null : g })}
+              title={`Hide listings restricted to ${g === "female" ? "men" : "women"}`}
+            >
+              {g === "female" ? "♀ Female" : "♂ Male"}
+            </button>
+          ))}
+          <span className="label ml-2">Stay ≤</span>
+          {[3, 6, 12].map((m) => (
+            <button
+              key={m}
+              className="chip"
+              data-on={f.maxTermMonths === m}
+              onClick={() => set({ maxTermMonths: f.maxTermMonths === m ? null : m })}
+              title={`Hide listings demanding more than ${m} months`}
+            >
+              {m}mo
+            </button>
+          ))}
+        </div>
+
         <div className="mt-2.5 flex items-center gap-1.5">
           <span className="label">Posted</span>
           {[1, 3, 7, 30].map((d) => (
@@ -304,6 +331,10 @@ function ListingRow({
         <span>{ROOM_TYPE_LABELS[l.roomType]}</span>
         <span>·</span>
         <span className="truncate">{l.area ?? SOURCE_LABELS[l.source]}</span>
+        {l.gender && <span className="shrink-0">· {l.gender === "female" ? "♀" : "♂"} only</span>}
+        {l.minTermMonths !== null && l.minTermMonths > 1 && (
+          <span className="shrink-0">· {l.minTermMonths}mo min</span>
+        )}
         {l.isActive && Date.now() - new Date(l.firstSeen).getTime() < 864e5 && (
           <span className="ml-auto shrink-0 rounded bg-[#22a06b]/15 px-1.5 py-px text-[9.5px] font-semibold uppercase tracking-wide text-[#3ecf8e]">
             new

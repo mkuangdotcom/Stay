@@ -92,6 +92,13 @@ export function DetailPanel({
           {l.area && <Row k="Area" v={l.area} />}
           {l.address && <Row k="Address" v={l.address} />}
           {l.furnished && <Row k="Furnishing" v={l.furnished} />}
+          {l.gender && <Row k="Tenant" v={l.gender === "female" ? "Female only" : "Male only"} />}
+          {l.minTermMonths !== null && (
+            <Row
+              k="Min stay"
+              v={l.minTermMonths <= 1 ? "Short-term OK" : `${l.minTermMonths} months`}
+            />
+          )}
           {l.availableFrom && <Row k="Available" v={l.availableFrom} />}
           <Row k="Source" v={SOURCE_LABELS[l.source]} />
           <Row k="Last seen" v={new Date(l.lastSeen).toLocaleDateString("en-MY")} />

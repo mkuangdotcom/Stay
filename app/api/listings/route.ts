@@ -29,6 +29,8 @@ export async function POST(req: NextRequest) {
     photos: Array.isArray(body.photos) ? body.photos : [],
     furnished: body.furnished || null,
     availableFrom: body.availableFrom || null,
+    gender: body.gender === "female" || body.gender === "male" ? body.gender : null,
+    minTermMonths: Number(body.minTermMonths) > 0 ? Number(body.minTermMonths) : null,
     notes: body.notes || null,
     firstSeen: now,
     lastSeen: now,

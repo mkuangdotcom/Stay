@@ -2,6 +2,9 @@ export type Source = "ibilik" | "mudah" | "speedhome" | "facebook" | "manual";
 
 export type RoomType = "master" | "medium" | "small" | "studio" | "unit" | "unknown";
 
+/** Stated tenant restriction; null = no restriction stated. */
+export type Gender = "female" | "male";
+
 export interface Listing {
   id: string;
   source: Source;
@@ -18,6 +21,10 @@ export interface Listing {
   photos: string[];
   furnished: string | null;
   availableFrom: string | null;
+  /** tenant restriction stated by the lister (null = anyone) */
+  gender: Gender | null;
+  /** minimum tenancy in months (1 = short-term ok, null = not stated) */
+  minTermMonths: number | null;
   notes: string | null;
   firstSeen: string;
   lastSeen: string;

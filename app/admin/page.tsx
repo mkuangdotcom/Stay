@@ -25,6 +25,8 @@ interface FormState {
   propertyName: string;
   area: string;
   furnished: string;
+  gender: string;
+  minTermMonths: string;
   photos: string;
   notes: string;
   lat: number | null;
@@ -41,6 +43,8 @@ const EMPTY: FormState = {
   propertyName: "",
   area: "",
   furnished: "",
+  gender: "",
+  minTermMonths: "",
   photos: "",
   notes: "",
   lat: null,
@@ -84,6 +88,8 @@ function Admin() {
       propertyName: l.propertyName ?? "",
       area: l.area ?? "",
       furnished: l.furnished ?? "",
+      gender: l.gender ?? "",
+      minTermMonths: l.minTermMonths !== null ? String(l.minTermMonths) : "",
       photos: l.photos.join("\n"),
       notes: l.notes ?? "",
       lat: l.lat,
@@ -107,6 +113,8 @@ function Admin() {
       propertyName: form.propertyName || null,
       area: form.area || null,
       furnished: form.furnished || null,
+      gender: form.gender || null,
+      minTermMonths: form.minTermMonths ? Number(form.minTermMonths) : null,
       photos: form.photos.split("\n").map((s) => s.trim()).filter(Boolean),
       notes: form.notes || null,
       lat: form.lat,
@@ -242,6 +250,37 @@ function Admin() {
                     {label}
                   </option>
                 ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="label" htmlFor="f-gender">Tenant restriction</label>
+              <select
+                id="f-gender"
+                className="field mt-1"
+                value={form.gender}
+                onChange={(e) => setForm({ ...form, gender: e.target.value })}
+              >
+                <option value="">Anyone</option>
+                <option value="female">Female only</option>
+                <option value="male">Male only</option>
+              </select>
+            </div>
+            <div>
+              <label className="label" htmlFor="f-term">Min stay</label>
+              <select
+                id="f-term"
+                className="field mt-1"
+                value={form.minTermMonths}
+                onChange={(e) => setForm({ ...form, minTermMonths: e.target.value })}
+              >
+                <option value="">Not stated</option>
+                <option value="1">Short-term OK</option>
+                <option value="3">3 months</option>
+                <option value="6">6 months</option>
+                <option value="12">12 months</option>
               </select>
             </div>
           </div>

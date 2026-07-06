@@ -8,10 +8,11 @@
  * centroid (geocoded once per area via Nominatim, cached for the run) plus a
  * small deterministic jitter; listings are flagged approximate in notes.
  */
-import type { Listing, RoomType } from "../../lib/types";
+import type { Gender, Listing, RoomType } from "../../lib/types";
 import type { SourceAdapter } from "./ibilik";
 import { REQUEST_DELAY_MS, USER_AGENT, MUDAH_MAX_KM_FROM_CENTER } from "../config";
 import { haversineMeters } from "../../lib/geo";
+import { extractGender, extractMinTerm } from "../lib/extract";
 
 const BASE = "https://www.mudah.my";
 const GEO_CENTER = { lat: 3.14, lng: 101.69 }; // KL city — bounds the conurbation
@@ -97,14 +98,19 @@ function jitter(sourceId: string): { dLat: number; dLng: number } {
 /* ------------------------------ adapter ------------------------------- */
 
 const adCache = new Map<string, MudahAd>();
+// Gender comes from re-querying the list with mudah's own Tenant Preference
+// filter (roommate_gender_id=1|2) — ads on those pages are known restricted.
+const genderById = new Map<string, Gender>();
 
 export const mudah: SourceAdapter = {
   name: "mudah",
+  alwaysRefreshDetails: true, // details are parsed from the list cache — free
 
   async listPage(area, page) {
     const p = await getPage();
     await politePause();
-    const url = `${BASE}/${area}${page > 1 ? `?o=${page}` : ""}`;
+    const sep = area.includes("?") ? "&" : "?";
+    const url = `${BASE}/${area}${page > 1 ? `${sep}o=${page}` : ""}`;
     const resp = await p.goto(url, { waitUntil: "domcontentloaded", timeout: 45000 });
     if (!resp || resp.status() !== 200) throw new Error(`HTTP ${resp?.status() ?? "?"} on ${url}`);
     await p.waitForTimeout(1200);
@@ -112,17 +118,27 @@ export const mudah: SourceAdapter = {
       const raw = document.getElementById("__NEXT_DATA__")?.textContent;
       if (!raw) return [];
       const j = JSON.parse(raw);
-      const list = j?.props?.pageProps?.initialStore?.ads ?? [];
+      // rooms vertical: pageProps.initialStore.ads; property vertical
+      // (apartments-condos): props.initialState.adListing.byID
+      const rooms = j?.props?.pageProps?.initialStore?.ads;
+      const byId = j?.props?.initialState?.adListing?.byID;
+      const list = rooms?.length ? rooms : byId ? Object.values(byId) : [];
       return list.map((a: { attributes: Record<string, unknown>; links?: Record<string, string> }) => ({
         ...a.attributes,
         imageBase: a.links?.imageBaseurl,
       }));
     });
+    const areaGender: Gender | null = area.includes("roommate_gender_id=2")
+      ? "female"
+      : area.includes("roommate_gender_id=1")
+        ? "male"
+        : null;
     const out: { url: string; sourceId: string }[] = [];
     for (const ad of ads as MudahAd[]) {
       if (!ad.listId || !ad.adviewUrl) continue;
       const sourceId = String(ad.listId);
-      adCache.set(sourceId, ad);
+      if (!adCache.has(sourceId)) adCache.set(sourceId, ad);
+      if (areaGender) genderById.set(sourceId, areaGender);
       out.push({ url: ad.adviewUrl, sourceId });
     }
     return out;
@@ -169,6 +185,8 @@ export const mudah: SourceAdapter = {
       photos,
       furnished: null,
       availableFrom: null,
+      gender: genderById.get(sourceId) ?? extractGender(ad.subject),
+      minTermMonths: extractMinTerm(ad.subject),
       notes: `Pin is approximate (${areaName} area — mudah publishes no exact coordinates).`,
       firstSeen: now,
       lastSeen: now,
