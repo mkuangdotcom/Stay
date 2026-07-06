@@ -179,7 +179,7 @@ export function Sidebar(p: Props) {
           />
         </div>
 
-        <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+        <div className="mt-2.5 flex items-center gap-1.5">
           <span className="label">I am</span>
           {(["female", "male"] as const).map((g) => (
             <button
@@ -192,7 +192,10 @@ export function Sidebar(p: Props) {
               {g === "female" ? "♀ Female" : "♂ Male"}
             </button>
           ))}
-          <span className="label ml-2">Stay ≤</span>
+        </div>
+
+        <div className="mt-2.5 flex items-center gap-1.5">
+          <span className="label">Stay ≤</span>
           {[3, 6, 12].map((m) => (
             <button
               key={m}
