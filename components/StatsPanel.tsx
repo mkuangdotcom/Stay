@@ -20,6 +20,11 @@ export function StatsPanel({
     [listings]
   );
 
+  const newCount = useMemo(() => {
+    const cutoff = Date.now() - 864e5;
+    return listings.filter((l) => new Date(l.firstSeen).getTime() > cutoff).length;
+  }, [listings]);
+
   const hist = useMemo(() => {
     if (prices.length < 2) return null;
     const lo = Math.min(...prices);
@@ -55,7 +60,10 @@ export function StatsPanel({
     <div className="px-4 py-3">
       <div className="flex items-baseline justify-between">
         <span className="label">Rents in view</span>
-        <span className="font-mono text-[11px] text-muted">{prices.length} listings</span>
+        <span className="font-mono text-[11px] text-muted">
+          {prices.length} listings
+          {newCount > 0 && <span className="text-[#3ecf8e]"> · {newCount} new</span>}
+        </span>
       </div>
 
       <div className="mt-2 grid grid-cols-3 gap-2">

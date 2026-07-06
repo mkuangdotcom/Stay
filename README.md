@@ -5,14 +5,16 @@ plotted against the full KL rail network with a computed door-to-door commute to
 office (default: First Avenue, Bandar Utama — drag the yellow pin to change it).
 
 - **Map**: MapLibre + OpenFreeMap tiles; all 8 rail lines toggleable, drawn from the
-  official GTFS feed in their official colors.
+  official GTFS feed in their official colors, plus toggleable MRT/LRT feeder-bus
+  routes (headways derived from the schedule).
 - **Commute**: walk to the nearest stations (real OSRM foot routes, cached) + scheduled
   ride times from GTFS + transfer/wait penalties, Dijkstra over the network. Listings
   near the office get a plain walking estimate instead.
 - **Filters**: price, room type, source, max walk-to-rail, max door-to-door, keyword.
 - **Stats**: min/median/max, price histogram, median by nearest station — always for
   the current filter.
-- **Sources**: iBilik scraper (automated); quick-add form for Facebook/WhatsApp/anything
+- **Sources**: iBilik + mudah.my scrapers (automated; mudah pins are area-centroids —
+  the site publishes no coordinates); quick-add form for Facebook/WhatsApp/anything
   at `/admin`. mudah.my & SpeedHome are phase 2.
 
 Everything runs on free tiers: Vercel Hobby, Supabase free, data.gov.my GTFS,
@@ -23,7 +25,7 @@ OpenFreeMap, FOSSGIS OSRM, Nominatim.
 ```bash
 npm run dev            # app on http://localhost:3000
 npm run ingest:gtfs    # refresh data/rail.json + rail-graph.json from data.gov.my
-npm run scrape         # scrape iBilik + compute walk times (all configured areas)
+npm run scrape         # scrape iBilik + mudah.my, compute walk times (all configured areas)
 npm run scrape -- --areas=kuala-lumpur/ttdi --max-pages=1   # targeted run
 npm run scrape -- --refresh                                 # re-fetch known listings too
 npm run build          # production build

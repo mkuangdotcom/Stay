@@ -127,6 +127,18 @@ body {
 
 input[type="range"] {
   accent-color: var(--accent);
+  height: 20px;
+}
+/* fingers need more than a hairline */
+@media (pointer: coarse) {
+  input[type="range"] {
+    height: 30px;
+  }
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 ::-webkit-scrollbar {

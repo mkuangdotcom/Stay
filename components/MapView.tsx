@@ -16,6 +16,8 @@ export interface ListingPoint {
   price: number;
   commute: number; // minutes, -1 = unreachable
   active: boolean;
+  /** area-level pin (no exact coordinates from the source) */
+  approx: boolean;
 }
 
 interface Props {
@@ -43,7 +45,13 @@ function listingsToGeoJSON(listings: ListingPoint[]): GeoJSON.FeatureCollection 
     features: listings.map((l) => ({
       type: "Feature",
       geometry: { type: "Point", coordinates: [l.lng, l.lat] },
-      properties: { id: l.id, price: l.price, commute: l.commute, active: l.active ? 1 : 0 },
+      properties: {
+        id: l.id,
+        price: l.price,
+        commute: l.commute,
+        active: l.active ? 1 : 0,
+        approx: l.approx ? 1 : 0,
+      },
     })),
   };
 }
@@ -290,7 +298,8 @@ export function MapView({
         paint: {
           "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 5, 14, 7.5, 16, 10],
           "circle-color": dotColorExpr(propsRef.current.colorMode, propsRef.current.priceStops),
-          "circle-stroke-color": "#ffffff",
+          // gray ring = approximate (area-level) pin, white = exact coordinates
+          "circle-stroke-color": ["case", ["==", ["get", "approx"], 1], "#9aa0a6", "#ffffff"],
           "circle-stroke-width": 1.6,
         },
       });

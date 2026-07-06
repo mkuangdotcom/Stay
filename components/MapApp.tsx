@@ -114,6 +114,7 @@ export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGra
         price: l.priceRm,
         commute: commutes.get(l.id) ? Math.round(commutes.get(l.id)!.totalMin) : -1,
         active: l.isActive,
+        approx: l.source === "mudah",
       })),
     [filtered, commutes]
   );

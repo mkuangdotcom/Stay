@@ -23,7 +23,7 @@ export function DetailPanel({
   const photos = l.photos.filter(Boolean);
 
   return (
-    <div className="pointer-events-auto flex max-h-[calc(100%-24px)] w-[340px] flex-col overflow-hidden rounded-xl border border-edge bg-ink shadow-2xl">
+    <div className="pointer-events-auto flex max-h-[calc(100%-24px)] w-[340px] max-w-[calc(100vw-24px)] flex-col overflow-hidden rounded-xl border border-edge bg-ink shadow-2xl">
       {photos.length > 0 && (
         <div className="relative h-[180px] shrink-0 bg-panel">
           {/* eslint-disable-next-line @next/next/no-img-element */}
