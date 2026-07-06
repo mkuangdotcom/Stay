@@ -43,12 +43,11 @@ function LoginForm() {
         <h1 className="text-center text-[20px] font-bold tracking-[0.14em]">
           STAY<span className="text-accent">.</span>
         </h1>
-        <p className="mt-1 text-center text-[12px] text-faint">Private — enter the password</p>
         <input
           type="text"
           autoComplete="username"
-          className="field mt-5"
-          placeholder="Username — guests only, owner leaves empty"
+          className="field mt-6"
+          placeholder="Username (optional)"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           aria-label="Username (guests only)"

@@ -48,15 +48,12 @@ export function Sidebar(p: Props) {
     arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v];
 
   return (
-    <aside className="flex h-full w-[360px] shrink-0 flex-col border-r border-edge bg-ink">
+    <aside className="flex h-full w-full flex-col border-r border-edge bg-ink">
       {/* brand */}
       <header className="flex items-center justify-between border-b border-edge px-4 py-3">
-        <div>
-          <h1 className="text-[17px] font-bold tracking-[0.14em]">
-            STAY<span className="text-accent">.</span>
-          </h1>
-          <p className="mt-0.5 text-[11px] text-faint">KL rentals by rail commute</p>
-        </div>
+        <h1 className="text-[17px] font-bold tracking-[0.14em]">
+          STAY<span className="text-accent">.</span>
+        </h1>
         <div className="flex items-center gap-2">
           {!p.isGuest && (
             <Link href="/admin" className="btn text-[12px]">
@@ -95,7 +92,7 @@ export function Sidebar(p: Props) {
           {p.officeIsDefault ? (
             <span>First Avenue, Bandar Utama</span>
           ) : (
-            <span className="truncate">{p.officeLabel ?? "Custom pin — drag the yellow marker"}</span>
+            <span className="truncate">{p.officeLabel ?? "Custom pin"}</span>
           )}
         </div>
         <DestinationSearch onPick={p.onMoveOffice} />
@@ -262,7 +259,7 @@ export function Sidebar(p: Props) {
       <StatsPanel listings={p.listings} commutes={p.commutes} />
 
       {/* list */}
-      <div className="flex items-center justify-between border-t border-edge px-4 py-2">
+      <div className="flex flex-wrap items-center justify-between gap-y-1.5 border-t border-edge px-4 py-2">
         <div className="flex items-center gap-2">
           <span className="label">
             {p.listings.length} of {p.totalCount}
@@ -317,9 +314,7 @@ export function Sidebar(p: Props) {
         ))}
         {p.listings.length === 0 && (
           <p className="px-4 py-6 text-center text-[12px] text-faint">
-            {p.loaded
-              ? "Nothing matches. Loosen a filter, or add a listing yourself."
-              : "Loading listings…"}
+            {p.loaded ? "No listings match." : "Loading…"}
           </p>
         )}
       </div>

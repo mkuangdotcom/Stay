@@ -21,6 +21,7 @@ const OFFICE_KEY = "stay.office";
 const BUS_KEY = "stay.buses";
 const ISO_KEY = "stay.zones";
 const ISO_BANDS = [30, 45, 60];
+const WIDTH_KEY = "stay.sidebar-width";
 
 export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGraphData }) {
   const [listings, setListings] = useState<Listing[]>([]);
@@ -37,6 +38,7 @@ export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGra
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [busEnabled, setBusEnabled] = useState(true);
   const [isoEnabled, setIsoEnabled] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(360);
 
   /* restore office pin + layer preferences */
   useEffect(() => {
@@ -49,8 +51,23 @@ export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGra
       }
       if (localStorage.getItem(BUS_KEY) === "off") setBusEnabled(false);
       if (localStorage.getItem(ISO_KEY) === "on") setIsoEnabled(true);
+      const w = Number(localStorage.getItem(WIDTH_KEY));
+      if (w >= 300 && w <= 560) setSidebarWidth(w);
     } catch {}
   }, []);
+
+  const startSidebarResize = (e: React.PointerEvent) => {
+    e.preventDefault();
+    const clamp = (x: number) => Math.min(560, Math.max(300, x));
+    const move = (ev: PointerEvent) => setSidebarWidth(clamp(ev.clientX));
+    const up = (ev: PointerEvent) => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      localStorage.setItem(WIDTH_KEY, String(clamp(ev.clientX)));
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
   const toggleIso = () => {
     setIsoEnabled((v) => {
       localStorage.setItem(ISO_KEY, v ? "off" : "on");
@@ -171,10 +188,18 @@ export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGra
   return (
     <div className="flex h-dvh w-full overflow-hidden">
       <div
-        className={`h-full transition-transform max-md:absolute max-md:z-30 ${
+        className={`relative h-full transition-transform max-md:absolute max-md:z-30 ${
           sidebarOpen ? "" : "max-md:-translate-x-full"
         }`}
+        style={{ width: `min(${sidebarWidth}px, 92vw)` }}
       >
+        {/* drag to resize (desktop) */}
+        <div
+          className="absolute -right-0.5 top-0 z-10 hidden h-full w-2 cursor-col-resize hover:bg-accent/40 md:block"
+          onPointerDown={startSidebarResize}
+          role="separator"
+          aria-label="Resize sidebar"
+        />
         <Sidebar
           filters={filters}
           onFilters={setFilters}
