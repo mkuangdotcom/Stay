@@ -16,6 +16,8 @@ export interface FilterState {
   tenant: Gender | null;
   /** the longest commitment acceptable, in months (null = any) */
   maxTermMonths: number | null;
+  /** only starred listings */
+  favOnly: boolean;
 }
 
 export const DEFAULT_FILTERS: FilterState = {
@@ -30,6 +32,7 @@ export const DEFAULT_FILTERS: FilterState = {
   maxAgeDays: null,
   tenant: null,
   maxTermMonths: null,
+  favOnly: false,
 };
 
 export function applyFilters(
@@ -41,6 +44,7 @@ export function applyFilters(
   const seenAfter =
     f.maxAgeDays !== null ? new Date(Date.now() - f.maxAgeDays * 864e5).toISOString() : null;
   return listings.filter((l) => {
+    if (f.favOnly && !l.isFav) return false;
     if (f.activeOnly && !l.isActive) return false;
     if (seenAfter !== null && l.firstSeen < seenAfter) return false;
     if (f.priceMin !== null && l.priceRm < f.priceMin) return false;

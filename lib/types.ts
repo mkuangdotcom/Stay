@@ -29,6 +29,8 @@ export interface Listing {
   firstSeen: string;
   lastSeen: string;
   isActive: boolean;
+  /** user shortlist star (synced via DB; optional so scrapers never touch it) */
+  isFav?: boolean;
 }
 
 /** Precomputed walking times from a listing to its nearby stations. */

@@ -30,6 +30,7 @@ interface Props {
   officeIsDefault: boolean;
   officeLabel: string | null;
   onMoveOffice: (pos: { lat: number; lng: number }, label?: string) => void;
+  onToggleFav: (id: string) => void;
   onResetOffice: () => void;
   lineColors: Record<string, string>;
   lineNames: Record<string, string>;
@@ -250,9 +251,19 @@ export function Sidebar(p: Props) {
 
       {/* list */}
       <div className="flex items-center justify-between border-t border-edge px-4 py-2">
-        <span className="label">
-          {p.listings.length} of {p.totalCount}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="label">
+            {p.listings.length} of {p.totalCount}
+          </span>
+          <button
+            className="chip"
+            data-on={f.favOnly}
+            onClick={() => set({ favOnly: !f.favOnly })}
+            title="Show only starred listings"
+          >
+            ★ Favs
+          </button>
+        </div>
         <div className="flex items-center gap-1.5">
           <select
             className="field w-auto py-1 text-[11.5px]"
@@ -284,6 +295,7 @@ export function Sidebar(p: Props) {
             commute={p.commutes.get(l.id) ?? null}
             selected={l.id === p.selectedId}
             onClick={() => p.onSelect(l.id)}
+            onToggleFav={() => p.onToggleFav(l.id)}
             lineColors={p.lineColors}
             lineNames={p.lineNames}
           />
@@ -303,6 +315,7 @@ function ListingRow({
   commute,
   selected,
   onClick,
+  onToggleFav,
   lineColors,
   lineNames,
 }: {
@@ -310,6 +323,7 @@ function ListingRow({
   commute: Commute | null;
   selected: boolean;
   onClick: () => void;
+  onToggleFav: () => void;
   lineColors: Record<string, string>;
   lineNames: Record<string, string>;
 }) {
@@ -322,7 +336,28 @@ function ListingRow({
       aria-pressed={selected}
     >
       <div className="flex items-baseline justify-between gap-2">
-        <span className="truncate text-[12.5px] font-medium">
+        <span
+          role="button"
+          tabIndex={0}
+          aria-label={l.isFav ? "Remove star" : "Star listing"}
+          className={`shrink-0 cursor-pointer text-[13px] leading-none ${
+            l.isFav ? "text-accent" : "text-faint hover:text-muted"
+          }`}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleFav();
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              e.stopPropagation();
+              onToggleFav();
+            }
+          }}
+        >
+          {l.isFav ? "★" : "☆"}
+        </span>
+        <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium">
           {l.propertyName || l.title}
         </span>
         <span className="shrink-0 font-mono text-[13px] font-semibold">

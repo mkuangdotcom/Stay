@@ -148,6 +148,7 @@ function rowToListing(r: Record<string, unknown>): Listing {
     firstSeen: r.first_seen as string,
     lastSeen: r.last_seen as string,
     isActive: r.is_active as boolean,
+    isFav: !!r.is_fav,
   };
 }
 
@@ -174,6 +175,7 @@ function listingToRow(l: Partial<Listing>): Record<string, unknown> {
   if (l.firstSeen !== undefined) row.first_seen = l.firstSeen;
   if (l.lastSeen !== undefined) row.last_seen = l.lastSeen;
   if (l.isActive !== undefined) row.is_active = l.isActive;
+  if (l.isFav !== undefined) row.is_fav = l.isFav;
   return row;
 }
 

@@ -9,6 +9,7 @@ import {
   type RailData,
   type RailGraphData,
 } from "@/lib/railGraph";
+import { isochroneCells } from "@/lib/isochrone";
 import { applyFilters, DEFAULT_FILTERS, quantile, type FilterState } from "@/lib/filters";
 import { MapView, type ColorMode, type ListingPoint } from "./MapView";
 import { Sidebar, type SortMode } from "./Sidebar";
@@ -18,6 +19,8 @@ import { LineChips } from "./LineChips";
 export const DEFAULT_OFFICE = { lat: 3.1458775, lng: 101.6173708 }; // First Avenue, Bandar Utama
 const OFFICE_KEY = "stay.office";
 const BUS_KEY = "stay.buses";
+const ISO_KEY = "stay.zones";
+const ISO_BANDS = [30, 45, 60];
 
 export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGraphData }) {
   const [listings, setListings] = useState<Listing[]>([]);
@@ -31,8 +34,9 @@ export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGra
   const [officeLabel, setOfficeLabel] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [busEnabled, setBusEnabled] = useState(true);
+  const [isoEnabled, setIsoEnabled] = useState(false);
 
-  /* restore office pin + bus preference */
+  /* restore office pin + layer preferences */
   useEffect(() => {
     try {
       const saved = localStorage.getItem(OFFICE_KEY);
@@ -42,14 +46,31 @@ export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGra
         setOfficeLabel(label ?? null);
       }
       if (localStorage.getItem(BUS_KEY) === "off") setBusEnabled(false);
+      if (localStorage.getItem(ISO_KEY) === "on") setIsoEnabled(true);
     } catch {}
   }, []);
+  const toggleIso = () => {
+    setIsoEnabled((v) => {
+      localStorage.setItem(ISO_KEY, v ? "off" : "on");
+      return !v;
+    });
+  };
   const toggleBus = () => {
     setBusEnabled((v) => {
       localStorage.setItem(BUS_KEY, v ? "off" : "on");
       return !v;
     });
   };
+  const toggleFav = (id: string) => {
+    const cur = listings.find((x) => x.id === id)?.isFav ?? false;
+    setListings((ls) => ls.map((l) => (l.id === id ? { ...l, isFav: !cur } : l)));
+    fetch(`/api/listings/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ isFav: !cur }),
+    }).catch(() => {});
+  };
+
   const moveOffice = (pos: { lat: number; lng: number }, label?: string) => {
     setOffice(pos);
     setOfficeLabel(label ?? null);
@@ -71,6 +92,10 @@ export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGra
   const graph = useMemo(
     () => new RailGraph(busEnabled ? graphData : stripBus(graphData)),
     [graphData, busEnabled]
+  );
+  const isoData = useMemo(
+    () => (isoEnabled ? isochroneCells(graph, graph.routeToOffice(office), ISO_BANDS) : null),
+    [graph, office, isoEnabled]
   );
   const routing = useMemo(() => graph.routeToOffice(office), [graph, office]);
   const commutes = useMemo(() => {
@@ -159,6 +184,7 @@ export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGra
           officeIsDefault={officeIsDefault}
           officeLabel={officeLabel}
           onMoveOffice={moveOffice}
+          onToggleFav={toggleFav}
           onResetOffice={() => moveOffice(DEFAULT_OFFICE)}
           lineColors={lineColors}
           lineNames={lineNames}
@@ -176,6 +202,7 @@ export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGra
           selected={selected ? { id: selected.id, lat: selected.lat, lng: selected.lng } : null}
           office={office}
           busVisible={busEnabled}
+          isochrone={isoData}
           onSelect={setSelectedId}
           onOfficeMove={moveOffice}
         />
@@ -197,6 +224,8 @@ export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGra
               hasBus={(rail.busLines?.length ?? 0) > 0}
               busEnabled={busEnabled}
               onToggleBus={toggleBus}
+              isoEnabled={isoEnabled}
+              onToggleIso={toggleIso}
             />
           </div>
           {selected && (
@@ -204,6 +233,7 @@ export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGra
               listing={selected}
               commute={commutes.get(selected.id) ?? null}
               onClose={() => setSelectedId(null)}
+              onToggleFav={toggleFav}
               lineColors={lineColors}
               lineNames={lineNames}
             />

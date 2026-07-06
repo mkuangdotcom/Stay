@@ -24,6 +24,7 @@ create table if not exists listings (
   first_seen     timestamptz not null,
   last_seen      timestamptz not null,
   is_active      boolean not null default true,
+  is_fav         boolean not null default false, -- user's shortlist star
   unique (source, source_id)
 );
 

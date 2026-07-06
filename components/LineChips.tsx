@@ -10,6 +10,8 @@ export function LineChips({
   hasBus = false,
   busEnabled = false,
   onToggleBus,
+  isoEnabled = false,
+  onToggleIso,
 }: {
   lines: RailLine[];
   visible: string[];
@@ -17,6 +19,8 @@ export function LineChips({
   hasBus?: boolean;
   busEnabled?: boolean;
   onToggleBus?: () => void;
+  isoEnabled?: boolean;
+  onToggleIso?: () => void;
 }) {
   const allOn = visible.length === lines.length;
   return (
@@ -61,6 +65,23 @@ export function LineChips({
             style={{ backgroundColor: "#2f8f83", opacity: busEnabled ? 1 : 0.3 }}
           />
           Bus
+        </button>
+      )}
+      {onToggleIso && (
+        <button
+          className="chip font-mono text-[10.5px]"
+          data-on={isoEnabled}
+          onClick={onToggleIso}
+          title="Shade areas within 30 / 45 / 60 min door-to-door of your destination"
+        >
+          <span
+            className="inline-block h-[9px] w-[9px] rounded-full border border-white/25"
+            style={{
+              background: "linear-gradient(135deg,#22a06b,#e7a100,#d64550)",
+              opacity: isoEnabled ? 1 : 0.3,
+            }}
+          />
+          Zones
         </button>
       )}
     </div>

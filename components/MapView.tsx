@@ -30,6 +30,8 @@ interface Props {
   selected: { id: string; lat: number; lng: number } | null;
   office: { lat: number; lng: number };
   busVisible: boolean;
+  /** commute-zone cells (null = layer off) */
+  isochrone: GeoJSON.FeatureCollection | null;
   onSelect: (id: string | null) => void;
   onOfficeMove: (pos: { lat: number; lng: number }) => void;
 }
@@ -88,6 +90,7 @@ export function MapView({
   selected,
   office,
   busVisible,
+  isochrone,
   onSelect,
   onOfficeMove,
 }: Props) {
@@ -96,8 +99,8 @@ export function MapView({
   const officeMarkerRef = useRef<Marker | null>(null);
   const loadedRef = useRef(false);
   // keep latest props readable from stable event handlers and the async load callback
-  const propsRef = useRef({ onSelect, onOfficeMove, listings, colorMode, priceStops, visibleLines, busVisible });
-  propsRef.current = { onSelect, onOfficeMove, listings, colorMode, priceStops, visibleLines, busVisible };
+  const propsRef = useRef({ onSelect, onOfficeMove, listings, colorMode, priceStops, visibleLines, busVisible, isochrone });
+  propsRef.current = { onSelect, onOfficeMove, listings, colorMode, priceStops, visibleLines, busVisible, isochrone };
 
   /* ------------------------- init (once) ------------------------- */
   useEffect(() => {
@@ -148,6 +151,36 @@ export function MapView({
           "line-width": ["interpolate", ["linear"], ["zoom"], 9, 1.6, 14, 4],
         },
       });
+
+      /* commute zones: translucent cells beneath everything else */
+      map.addSource("isochrone", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+      map.addLayer(
+        {
+          id: "isochrone-fill",
+          type: "fill",
+          source: "isochrone",
+          paint: {
+            "fill-color": [
+              "match",
+              ["get", "band"],
+              30, GOOD,
+              45, MID,
+              60, BAD,
+              "#888888",
+            ],
+            "fill-opacity": 0.14,
+          },
+        },
+        "rail-casing"
+      );
+      if (propsRef.current.isochrone) {
+        (map.getSource("isochrone") as maplibregl.GeoJSONSource).setData(
+          propsRef.current.isochrone
+        );
+      }
 
       /* feeder buses: thin dashed lines + stop dots at street zooms, beneath rail */
       if (rail.busLines?.length) {
@@ -414,6 +447,14 @@ export function MapView({
       }
     }
   }, [busVisible]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !loadedRef.current) return;
+    (map.getSource("isochrone") as maplibregl.GeoJSONSource | undefined)?.setData(
+      isochrone ?? { type: "FeatureCollection", features: [] }
+    );
+  }, [isochrone]);
 
   useEffect(() => {
     const map = mapRef.current;

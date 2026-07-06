@@ -10,12 +10,14 @@ export function DetailPanel({
   listing: l,
   commute,
   onClose,
+  onToggleFav,
   lineColors,
   lineNames,
 }: {
   listing: Listing;
   commute: Commute | null;
   onClose: () => void;
+  onToggleFav: (id: string) => void;
   lineColors: Record<string, string>;
   lineNames: Record<string, string>;
 }) {
@@ -50,15 +52,26 @@ export function DetailPanel({
       )}
 
       <div className="min-h-0 overflow-y-auto p-4">
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start justify-between gap-2">
           <h2 className="text-[14px] font-semibold leading-snug">{l.title}</h2>
-          <button
-            onClick={onClose}
-            aria-label="Close"
-            className="grid h-6 w-6 shrink-0 place-items-center rounded-md text-muted hover:bg-panel hover:text-text"
-          >
-            ✕
-          </button>
+          <div className="flex shrink-0 items-center gap-1">
+            <button
+              onClick={() => onToggleFav(l.id)}
+              aria-label={l.isFav ? "Remove star" : "Star listing"}
+              className={`grid h-6 w-6 place-items-center rounded-md text-[15px] hover:bg-panel ${
+                l.isFav ? "text-accent" : "text-muted hover:text-text"
+              }`}
+            >
+              {l.isFav ? "★" : "☆"}
+            </button>
+            <button
+              onClick={onClose}
+              aria-label="Close"
+              className="grid h-6 w-6 place-items-center rounded-md text-muted hover:bg-panel hover:text-text"
+            >
+              ✕
+            </button>
+          </div>
         </div>
 
         <div className="mt-2 flex items-baseline gap-2">
