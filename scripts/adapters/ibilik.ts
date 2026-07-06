@@ -10,6 +10,8 @@ export interface SourceAdapter {
   listPage(area: string, page: number): Promise<{ url: string; sourceId: string }[]>;
   /** Fetches and parses one listing's detail page. Returns null if unparseable. */
   fetchDetail(url: string, sourceId: string): Promise<Listing | null>;
+  /** Release resources (e.g. a headless browser) after the run. */
+  close?(): Promise<void>;
 }
 
 export const ibilik: SourceAdapter = {

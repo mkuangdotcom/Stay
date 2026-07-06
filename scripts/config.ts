@@ -21,6 +21,15 @@ export const IBILIK_AREAS = [
   "kuala-lumpur/wangsa-maju",
 ];
 
+/**
+ * mudah.my region paths (40 ads/page, newest first). Coordinates are
+ * area-centroids — see scripts/adapters/mudah.ts.
+ */
+export const MUDAH_AREAS = ["kuala-lumpur/rooms-for-rent", "selangor/rooms-for-rent"];
+
+/** Skip mudah listings whose area centroid is further than this from KL. */
+export const MUDAH_MAX_KM_FROM_CENTER = 32;
+
 /** Index pages fetched per area per run (15 listings each, newest first). */
 export const MAX_PAGES_PER_AREA = 2;
 

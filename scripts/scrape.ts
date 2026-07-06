@@ -12,11 +12,13 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   IBILIK_AREAS,
+  MUDAH_AREAS,
   MAX_PAGES_PER_AREA,
   DETAIL_REFRESH_HOURS,
   STALE_AFTER_DAYS,
 } from "./config";
 import { ibilik, type SourceAdapter } from "./adapters/ibilik";
+import { mudah } from "./adapters/mudah";
 import type { Listing, WalkEntry } from "../lib/types";
 
 const args = new Map<string, string>(
@@ -26,14 +28,14 @@ const args = new Map<string, string>(
   })
 );
 
-const ADAPTERS: Record<string, SourceAdapter> = { ibilik };
+const ADAPTERS: Record<string, SourceAdapter> = { ibilik, mudah };
+const AREA_DEFAULTS: Record<string, string[]> = { ibilik: IBILIK_AREAS, mudah: MUDAH_AREAS };
 
 async function main() {
   const { db, dbBackend } = await import("../lib/db");
   console.log(`Storage backend: ${dbBackend}`);
 
-  const sourceNames = (args.get("source") ?? "ibilik").split(",");
-  const areas = args.get("areas")?.split(",") ?? IBILIK_AREAS;
+  const sourceNames = (args.get("source") ?? "ibilik,mudah").split(",");
   const maxPages = Number(args.get("max-pages") ?? MAX_PAGES_PER_AREA);
   const refreshAll = args.has("refresh");
   const dryRun = args.has("dry-run");
@@ -47,6 +49,7 @@ async function main() {
       console.error(`No adapter named "${name}" (available: ${Object.keys(ADAPTERS).join(", ")})`);
       continue;
     }
+    const areas = args.get("areas")?.split(",") ?? AREA_DEFAULTS[name] ?? [];
     const known = new Map(
       existing.filter((l) => l.source === adapter.name).map((l) => [l.sourceId, l])
     );
@@ -99,15 +102,15 @@ async function main() {
 
     if (dryRun) {
       console.log(`  DRY RUN — first row:\n`, rows[0]);
-      continue;
+    } else {
+      const { created, updated } = await db.upsertListings(rows);
+      const deactivated = await db.deactivateStale(
+        adapter.name,
+        new Date(Date.now() - STALE_AFTER_DAYS * 86400 * 1000).toISOString()
+      );
+      console.log(`  upserted: ${created} new, ${updated} updated; ${deactivated} marked gone`);
     }
-
-    const { created, updated } = await db.upsertListings(rows);
-    const deactivated = await db.deactivateStale(
-      adapter.name,
-      new Date(Date.now() - STALE_AFTER_DAYS * 86400 * 1000).toISOString()
-    );
-    console.log(`  upserted: ${created} new, ${updated} updated; ${deactivated} marked gone`);
+    await adapter.close?.();
   }
 
   if (!dryRun && !args.has("skip-walk")) await computeWalkTimes();
@@ -131,7 +134,7 @@ async function computeWalkTimes() {
 
   let done = 0;
   for (const l of pending.slice(0, budget)) {
-    const nearest = graph.nearestStations(l.lat, l.lng, 3, 35);
+    const nearest = graph.nearestStations(l.lat, l.lng, 3, 35, true); // rail only — bus-stop walks are short, estimates suffice
     const entries: WalkEntry[] = [];
     for (const st of nearest) {
       const route = await walkingRoute({ lat: l.lat, lng: l.lng }, { lat: st.lat, lng: st.lng });

@@ -15,26 +15,36 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
       - run: npm ci
 
-      # iBilik blocks some datacenter IPs. Probe first so a block fails loudly
-      # instead of silently scraping nothing — if this step keeps failing,
-      # run the scraper from a home machine instead (see README).
+      # mudah.my needs headless Chromium (403s plain HTTP)
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      # iBilik blocks some datacenter IPs. Probe first: if blocked, skip the
+      # ibilik source but still scrape mudah — if both keep failing, run the
+      # scraper from a home machine instead (see README).
       - name: Check iBilik reachability
+        id: probe
         run: |
           code=$(curl -s -o /dev/null -w "%{http_code}" \
             -A "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36" \
             https://www.ibilik.com/locations/malaysia/kuala-lumpur/room-rentals)
           echo "iBilik responded with HTTP $code"
-          [ "$code" = "200" ]
+          if [ "$code" = "200" ]; then
+            echo "sources=ibilik,mudah" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::iBilik unreachable (HTTP $code) — scraping mudah only"
+            echo "sources=mudah" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Scrape
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-        run: npm run scrape -- --max-pages=${{ github.event.inputs.max_pages || 2 }}
+        run: npm run scrape -- --source=${{ steps.probe.outputs.sources }} --max-pages=${{ github.event.inputs.max_pages || 2 }}
