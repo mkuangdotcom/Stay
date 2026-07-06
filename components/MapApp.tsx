@@ -21,18 +21,24 @@ export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGra
   const [visibleLines, setVisibleLines] = useState<string[]>(rail.lines.map((l) => l.id));
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [office, setOffice] = useState(DEFAULT_OFFICE);
+  const [officeLabel, setOfficeLabel] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   /* restore office pin */
   useEffect(() => {
     try {
       const saved = localStorage.getItem(OFFICE_KEY);
-      if (saved) setOffice(JSON.parse(saved));
+      if (saved) {
+        const { lat, lng, label } = JSON.parse(saved);
+        setOffice({ lat, lng });
+        setOfficeLabel(label ?? null);
+      }
     } catch {}
   }, []);
-  const moveOffice = (pos: { lat: number; lng: number }) => {
+  const moveOffice = (pos: { lat: number; lng: number }, label?: string) => {
     setOffice(pos);
-    localStorage.setItem(OFFICE_KEY, JSON.stringify(pos));
+    setOfficeLabel(label ?? null);
+    localStorage.setItem(OFFICE_KEY, JSON.stringify({ ...pos, label }));
   };
 
   /* data */
@@ -131,6 +137,8 @@ export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGra
           colorMode={colorMode}
           onColorMode={setColorMode}
           officeIsDefault={officeIsDefault}
+          officeLabel={officeLabel}
+          onMoveOffice={moveOffice}
           onResetOffice={() => moveOffice(DEFAULT_OFFICE)}
           lineColors={lineColors}
           lineNames={lineNames}

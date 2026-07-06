@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { Listing, RoomType, Source } from "@/lib/types";
 import { ROOM_TYPE_LABELS, SOURCE_LABELS } from "@/lib/types";
@@ -27,6 +28,8 @@ interface Props {
   colorMode: ColorMode;
   onColorMode: (m: ColorMode) => void;
   officeIsDefault: boolean;
+  officeLabel: string | null;
+  onMoveOffice: (pos: { lat: number; lng: number }, label?: string) => void;
   onResetOffice: () => void;
   lineColors: Record<string, string>;
   lineNames: Record<string, string>;
@@ -79,9 +82,10 @@ export function Sidebar(p: Props) {
           {p.officeIsDefault ? (
             <span>First Avenue, Bandar Utama</span>
           ) : (
-            <span>Custom pin — drag the yellow marker</span>
+            <span className="truncate">{p.officeLabel ?? "Custom pin — drag the yellow marker"}</span>
           )}
         </div>
+        <DestinationSearch onPick={p.onMoveOffice} />
       </div>
 
       {/* filters */}
@@ -298,5 +302,76 @@ function ListingRow({
         </div>
       )}
     </button>
+  );
+}
+
+/* Address search that moves the commute destination (Nominatim via /api/geocode). */
+function DestinationSearch({
+  onPick,
+}: {
+  onPick: (pos: { lat: number; lng: number }, label?: string) => void;
+}) {
+  const [q, setQ] = useState("");
+  const [results, setResults] = useState<{ name: string; lat: number; lng: number }[]>([]);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    const query = q.trim();
+    if (query.length < 3) {
+      setResults([]);
+      setBusy(false);
+      return;
+    }
+    setBusy(true);
+    let stale = false;
+    const t = setTimeout(() => {
+      fetch(`/api/geocode?q=${encodeURIComponent(query)}`)
+        .then((r) => r.json())
+        .then((d) => {
+          if (!stale) setResults(d.results ?? []);
+        })
+        .catch(() => {
+          if (!stale) setResults([]);
+        })
+        .finally(() => {
+          if (!stale) setBusy(false);
+        });
+    }, 400);
+    return () => {
+      stale = true;
+      clearTimeout(t);
+    };
+  }, [q]);
+
+  return (
+    <div className="relative mt-1.5">
+      <input
+        className="field w-full"
+        placeholder="Search address or place…"
+        aria-label="Search a destination address"
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+      />
+      {busy && <span className="absolute right-2.5 top-1.5 text-[11px] text-faint">…</span>}
+      {results.length > 0 && (
+        <ul className="absolute left-0 right-0 top-full z-40 mt-1 max-h-52 overflow-auto rounded-lg border border-edge bg-ink shadow-lg">
+          {results.map((r, i) => (
+            <li key={i}>
+              <button
+                type="button"
+                className="block w-full px-2.5 py-1.5 text-left text-[12px] hover:bg-white/5"
+                onClick={() => {
+                  onPick({ lat: r.lat, lng: r.lng }, r.name.split(",").slice(0, 2).join(","));
+                  setQ("");
+                  setResults([]);
+                }}
+              >
+                {r.name}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }

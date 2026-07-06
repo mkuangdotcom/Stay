@@ -345,6 +345,13 @@ export function MapView({
 
   useEffect(() => {
     officeMarkerRef.current?.setLngLat([office.lng, office.lat]);
+    const map = mapRef.current;
+    if (!map || !loadedRef.current) return;
+    // moved from outside the viewport (address search) → bring it into view;
+    // drags always end inside the viewport, so they don't trigger this
+    if (!map.getBounds().contains([office.lng, office.lat])) {
+      map.flyTo({ center: [office.lng, office.lat], zoom: Math.max(map.getZoom(), 13), speed: 1.6 });
+    }
   }, [office]);
 
   return <div ref={containerRef} className="h-full w-full" />;
