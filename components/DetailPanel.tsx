@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Listing } from "@/lib/types";
 import { ROOM_TYPE_LABELS, SOURCE_LABELS } from "@/lib/types";
 import type { Commute } from "@/lib/railGraph";
@@ -85,6 +85,8 @@ export function DetailPanel({
           </div>
         )}
 
+        <PriceHistorySection key={l.id} id={l.id} />
+
         <dl className="mt-3 space-y-1.5 text-[12px]">
           {l.propertyName && <Row k="Property" v={l.propertyName} />}
           {l.area && <Row k="Area" v={l.area} />}
@@ -112,6 +114,137 @@ export function DetailPanel({
           </a>
         </div>
       </div>
+    </div>
+  );
+}
+
+type PricePoint = { priceRm: number; seenAt: string };
+
+/** Collapsed by default; fetches history on first open. */
+function PriceHistorySection({ id }: { id: string }) {
+  const [open, setOpen] = useState(false);
+  const [points, setPoints] = useState<PricePoint[] | null>(null);
+
+  useEffect(() => {
+    if (!open || points !== null) return;
+    let stale = false;
+    fetch(`/api/listings/${encodeURIComponent(id)}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (!stale) setPoints(d.points ?? []);
+      })
+      .catch(() => {
+        if (!stale) setPoints([]);
+      });
+    return () => {
+      stale = true;
+    };
+  }, [open, points, id]);
+
+  return (
+    <div className="mt-3">
+      <button
+        className="btn w-full justify-between text-[12px]"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+      >
+        <span>Price history</span>
+        <span className="text-faint">{open ? "▴" : "▾"}</span>
+      </button>
+      {open && (
+        <div className="mt-2 rounded-lg bg-panel p-2.5">
+          {points === null ? (
+            <p className="py-3 text-center text-[11px] text-faint">Loading…</p>
+          ) : points.length === 0 ? (
+            <p className="py-2 text-[11px] text-faint">No history recorded for this listing.</p>
+          ) : points.length === 1 ? (
+            <p className="py-1 text-[12px] text-muted">
+              No price changes —{" "}
+              <span className="font-mono text-text">RM{points[0].priceRm.toLocaleString()}</span>{" "}
+              since {new Date(points[0].seenAt).toLocaleDateString("en-MY")}
+            </p>
+          ) : (
+            <PriceStepChart points={points} />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Step line: prices hold between observations, so steps are the honest form. */
+function PriceStepChart({ points }: { points: PricePoint[] }) {
+  const [hover, setHover] = useState<number | null>(null);
+  const W = 292, H = 108, L = 42, R = 10, T = 12, B = 20;
+
+  const t0 = new Date(points[0].seenAt).getTime();
+  const t1 = Date.now(); // price still current → extend the last step to today
+  const prices = points.map((p) => p.priceRm);
+  let lo = Math.min(...prices), hi = Math.max(...prices);
+  const pad = Math.max((hi - lo) * 0.15, hi * 0.02);
+  lo -= pad; hi += pad;
+
+  const x = (iso: string | number) =>
+    L + ((typeof iso === "number" ? iso : new Date(iso).getTime()) - t0) / Math.max(t1 - t0, 1) * (W - L - R);
+  const y = (rm: number) => T + (1 - (rm - lo) / (hi - lo)) * (H - T - B);
+
+  let d = `M ${x(points[0].seenAt)} ${y(points[0].priceRm)}`;
+  for (let i = 1; i < points.length; i++) {
+    d += ` H ${x(points[i].seenAt)} V ${y(points[i].priceRm)}`;
+  }
+  d += ` H ${x(t1)}`;
+
+  const first = points[0].priceRm, last = points[points.length - 1].priceRm;
+  const delta = last - first;
+  const fmt = (n: number) => `RM${n.toLocaleString()}`;
+  const day = (iso: string | number) =>
+    new Date(iso).toLocaleDateString("en-MY", { day: "numeric", month: "short" });
+
+  return (
+    <div className="relative">
+      <div className="mb-1 flex items-baseline justify-between">
+        <span className="label">Asking price</span>
+        <span
+          className={`font-mono text-[11px] ${delta === 0 ? "text-muted" : delta < 0 ? "text-good" : "text-bad"}`}
+        >
+          {delta === 0 ? "unchanged" : `${delta < 0 ? "▼" : "▲"} ${fmt(Math.abs(delta))}`}
+        </span>
+      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="Price history chart">
+        {/* recessive grid: min & max */}
+        {[hi - pad, lo + pad].map((v, i) => (
+          <g key={i}>
+            <line x1={L} x2={W - R} y1={y(v)} y2={y(v)} stroke="var(--edge)" strokeWidth="1" />
+            <text x={L - 5} y={y(v) + 3} textAnchor="end" fontSize="9" fill="var(--muted)" fontFamily="monospace">
+              {fmt(v)}
+            </text>
+          </g>
+        ))}
+        <path d={d} fill="none" stroke="#5b8def" strokeWidth="2" strokeLinejoin="round" />
+        {points.map((p, i) => (
+          <g key={i}>
+            <circle cx={x(p.seenAt)} cy={y(p.priceRm)} r="3.5" fill="#5b8def" stroke="var(--panel)" strokeWidth="2" />
+            {/* oversized invisible hit target */}
+            <circle
+              cx={x(p.seenAt)} cy={y(p.priceRm)} r="10" fill="transparent"
+              onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}
+            />
+          </g>
+        ))}
+        <text x={L} y={H - 6} fontSize="9" fill="var(--faint)">{day(points[0].seenAt)}</text>
+        <text x={W - R} y={H - 6} fontSize="9" fill="var(--faint)" textAnchor="end">today</text>
+      </svg>
+      {hover !== null && (
+        <div
+          className="pointer-events-none absolute z-10 -translate-x-1/2 rounded-md border border-edge bg-panel-2 px-2 py-1 font-mono text-[10.5px] text-text shadow-lg"
+          style={{
+            left: `${(x(points[hover].seenAt) / W) * 100}%`,
+            top: Math.max(y(points[hover].priceRm) - 34, 0),
+          }}
+        >
+          {fmt(points[hover].priceRm)} · {day(points[hover].seenAt)}
+        </div>
+      )}
     </div>
   );
 }

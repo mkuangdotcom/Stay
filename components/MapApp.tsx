@@ -2,7 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { Listing, WalkCache } from "@/lib/types";
-import { RailGraph, type Commute, type RailData, type RailGraphData } from "@/lib/railGraph";
+import {
+  RailGraph,
+  stripBus,
+  type Commute,
+  type RailData,
+  type RailGraphData,
+} from "@/lib/railGraph";
 import { applyFilters, DEFAULT_FILTERS, quantile, type FilterState } from "@/lib/filters";
 import { MapView, type ColorMode, type ListingPoint } from "./MapView";
 import { Sidebar, type SortMode } from "./Sidebar";
@@ -11,6 +17,7 @@ import { LineChips } from "./LineChips";
 
 export const DEFAULT_OFFICE = { lat: 3.1458775, lng: 101.6173708 }; // First Avenue, Bandar Utama
 const OFFICE_KEY = "stay.office";
+const BUS_KEY = "stay.buses";
 
 export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGraphData }) {
   const [listings, setListings] = useState<Listing[]>([]);
@@ -23,8 +30,9 @@ export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGra
   const [office, setOffice] = useState(DEFAULT_OFFICE);
   const [officeLabel, setOfficeLabel] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [busEnabled, setBusEnabled] = useState(true);
 
-  /* restore office pin */
+  /* restore office pin + bus preference */
   useEffect(() => {
     try {
       const saved = localStorage.getItem(OFFICE_KEY);
@@ -33,8 +41,15 @@ export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGra
         setOffice({ lat, lng });
         setOfficeLabel(label ?? null);
       }
+      if (localStorage.getItem(BUS_KEY) === "off") setBusEnabled(false);
     } catch {}
   }, []);
+  const toggleBus = () => {
+    setBusEnabled((v) => {
+      localStorage.setItem(BUS_KEY, v ? "off" : "on");
+      return !v;
+    });
+  };
   const moveOffice = (pos: { lat: number; lng: number }, label?: string) => {
     setOffice(pos);
     setOfficeLabel(label ?? null);
@@ -52,8 +67,11 @@ export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGra
       .catch(() => {});
   }, []);
 
-  /* commute engine */
-  const graph = useMemo(() => new RailGraph(graphData), [graphData]);
+  /* commute engine — buses in the graph are opt-out via the map chip */
+  const graph = useMemo(
+    () => new RailGraph(busEnabled ? graphData : stripBus(graphData)),
+    [graphData, busEnabled]
+  );
   const routing = useMemo(() => graph.routeToOffice(office), [graph, office]);
   const commutes = useMemo(() => {
     const m = new Map<string, Commute | null>();
@@ -101,13 +119,14 @@ export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGra
   );
 
   const selected = selectedId ? listings.find((l) => l.id === selectedId) ?? null : null;
+  const allLines = useMemo(() => [...rail.lines, ...(rail.busLines ?? [])], [rail]);
   const lineColors = useMemo(
-    () => Object.fromEntries(rail.lines.map((l) => [l.id, l.color])),
-    [rail.lines]
+    () => Object.fromEntries(allLines.map((l) => [l.id, l.color])),
+    [allLines]
   );
   const lineNames = useMemo(
-    () => Object.fromEntries(rail.lines.map((l) => [l.id, l.name])),
-    [rail.lines]
+    () => Object.fromEntries(allLines.map((l) => [l.id, l.name])),
+    [allLines]
   );
 
   const officeIsDefault =
@@ -155,6 +174,7 @@ export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGra
           priceStops={priceStops}
           selected={selected ? { id: selected.id, lat: selected.lat, lng: selected.lng } : null}
           office={office}
+          busVisible={busEnabled}
           onSelect={setSelectedId}
           onOfficeMove={moveOffice}
         />
@@ -169,7 +189,14 @@ export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGra
             >
               ☰
             </button>
-            <LineChips lines={rail.lines} visible={visibleLines} onChange={setVisibleLines} />
+            <LineChips
+              lines={rail.lines}
+              visible={visibleLines}
+              onChange={setVisibleLines}
+              hasBus={(rail.busLines?.length ?? 0) > 0}
+              busEnabled={busEnabled}
+              onToggleBus={toggleBus}
+            />
           </div>
           {selected && (
             <DetailPanel

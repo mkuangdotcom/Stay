@@ -179,6 +179,20 @@ export function Sidebar(p: Props) {
           />
         </div>
 
+        <div className="mt-2.5 flex items-center gap-1.5">
+          <span className="label">Posted</span>
+          {[1, 3, 7, 30].map((d) => (
+            <button
+              key={d}
+              className="chip"
+              data-on={f.maxAgeDays === d}
+              onClick={() => set({ maxAgeDays: f.maxAgeDays === d ? null : d })}
+            >
+              {d === 1 ? "24h" : `≤${d}d`}
+            </button>
+          ))}
+        </div>
+
         <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
           {SOURCES.map((s) => (
             <button
@@ -290,6 +304,11 @@ function ListingRow({
         <span>{ROOM_TYPE_LABELS[l.roomType]}</span>
         <span>·</span>
         <span className="truncate">{l.area ?? SOURCE_LABELS[l.source]}</span>
+        {l.isActive && Date.now() - new Date(l.firstSeen).getTime() < 864e5 && (
+          <span className="ml-auto shrink-0 rounded bg-[#22a06b]/15 px-1.5 py-px text-[9.5px] font-semibold uppercase tracking-wide text-[#3ecf8e]">
+            new
+          </span>
+        )}
         {!l.isActive && (
           <span className="ml-auto shrink-0 rounded bg-panel-2 px-1.5 py-px text-[9.5px] uppercase tracking-wide">
             gone

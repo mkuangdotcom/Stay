@@ -27,6 +27,7 @@ interface Props {
   priceStops: [number, number, number];
   selected: { id: string; lat: number; lng: number } | null;
   office: { lat: number; lng: number };
+  busVisible: boolean;
   onSelect: (id: string | null) => void;
   onOfficeMove: (pos: { lat: number; lng: number }) => void;
 }
@@ -78,6 +79,7 @@ export function MapView({
   priceStops,
   selected,
   office,
+  busVisible,
   onSelect,
   onOfficeMove,
 }: Props) {
@@ -86,8 +88,8 @@ export function MapView({
   const officeMarkerRef = useRef<Marker | null>(null);
   const loadedRef = useRef(false);
   // keep latest props readable from stable event handlers and the async load callback
-  const propsRef = useRef({ onSelect, onOfficeMove, listings, colorMode, priceStops, visibleLines });
-  propsRef.current = { onSelect, onOfficeMove, listings, colorMode, priceStops, visibleLines };
+  const propsRef = useRef({ onSelect, onOfficeMove, listings, colorMode, priceStops, visibleLines, busVisible });
+  propsRef.current = { onSelect, onOfficeMove, listings, colorMode, priceStops, visibleLines, busVisible };
 
   /* ------------------------- init (once) ------------------------- */
   useEffect(() => {
@@ -138,6 +140,66 @@ export function MapView({
           "line-width": ["interpolate", ["linear"], ["zoom"], 9, 1.6, 14, 4],
         },
       });
+
+      /* feeder buses: thin dashed lines + stop dots at street zooms, beneath rail */
+      if (rail.busLines?.length) {
+        map.addSource("bus-lines", {
+          type: "geojson",
+          data: {
+            type: "FeatureCollection",
+            features: rail.busLines
+              .filter((l) => l.shape.length > 1)
+              .map((l) => ({
+                type: "Feature",
+                geometry: { type: "LineString", coordinates: l.shape },
+                properties: { id: l.id, color: l.color, name: l.name },
+              })),
+          },
+        });
+        map.addLayer(
+          {
+            id: "bus-line",
+            type: "line",
+            source: "bus-lines",
+            layout: { "line-cap": "round", "line-join": "round" },
+            paint: {
+              "line-color": ["get", "color"],
+              "line-width": ["interpolate", ["linear"], ["zoom"], 10, 0.7, 14, 2],
+              "line-dasharray": [2, 2.5],
+              "line-opacity": 0.55,
+            },
+          },
+          "rail-casing"
+        );
+        map.addSource("bus-stops", {
+          type: "geojson",
+          data: {
+            type: "FeatureCollection",
+            features: (rail.busStops ?? []).map((c) => ({
+              type: "Feature",
+              geometry: { type: "Point", coordinates: c },
+              properties: {},
+            })),
+          },
+        });
+        map.addLayer(
+          {
+            id: "bus-stops-dot",
+            type: "circle",
+            source: "bus-stops",
+            minzoom: 13.5,
+            paint: {
+              "circle-radius": ["interpolate", ["linear"], ["zoom"], 13.5, 1.6, 16, 3.2],
+              "circle-color": "#2f8f83",
+              "circle-opacity": 0.7,
+            },
+          },
+          "rail-casing"
+        );
+        const busVis = propsRef.current.busVisible ? "visible" : "none";
+        map.setLayoutProperty("bus-line", "visibility", busVis);
+        map.setLayoutProperty("bus-stops-dot", "visibility", busVis);
+      }
 
       /* stations */
       map.addSource("stations", {
@@ -333,6 +395,16 @@ export function MapView({
     if (!map || !loadedRef.current) return;
     applyLineVisibility(map, visibleLines);
   }, [visibleLines]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !loadedRef.current) return;
+    for (const id of ["bus-line", "bus-stops-dot"]) {
+      if (map.getLayer(id)) {
+        map.setLayoutProperty(id, "visibility", busVisible ? "visible" : "none");
+      }
+    }
+  }, [busVisible]);
 
   useEffect(() => {
     const map = mapRef.current;

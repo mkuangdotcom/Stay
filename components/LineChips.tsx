@@ -7,10 +7,16 @@ export function LineChips({
   lines,
   visible,
   onChange,
+  hasBus = false,
+  busEnabled = false,
+  onToggleBus,
 }: {
   lines: RailLine[];
   visible: string[];
   onChange: (ids: string[]) => void;
+  hasBus?: boolean;
+  busEnabled?: boolean;
+  onToggleBus?: () => void;
 }) {
   const allOn = visible.length === lines.length;
   return (
@@ -43,6 +49,20 @@ export function LineChips({
           </button>
         );
       })}
+      {hasBus && (
+        <button
+          className="chip font-mono text-[10.5px]"
+          data-on={busEnabled}
+          onClick={onToggleBus}
+          title="MRT/LRT feeder buses — include in commutes and show on the map"
+        >
+          <span
+            className="inline-block h-[9px] w-[9px] rounded-full border border-white/25"
+            style={{ backgroundColor: "#2f8f83", opacity: busEnabled ? 1 : 0.3 }}
+          />
+          Bus
+        </button>
+      )}
     </div>
   );
 }

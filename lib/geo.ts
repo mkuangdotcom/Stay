@@ -16,7 +16,7 @@ export function haversineMeters(
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
-const DETOUR_FACTOR = 1.35; // street networks are never straight lines
+export const DETOUR_FACTOR = 1.35; // street networks are never straight lines
 const WALK_KMH = 4.6;
 
 /** Estimated walking minutes between two points (haversine × detour factor). */

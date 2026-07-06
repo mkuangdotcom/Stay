@@ -1,4 +1,9 @@
-import { haversineMeters, walkMinutesEstimate } from "./geo";
+import {
+  DETOUR_FACTOR,
+  haversineMeters,
+  metersToWalkMinutes,
+  walkMinutesEstimate,
+} from "./geo";
 import type { WalkEntry } from "./types";
 
 /* Shapes of the JSON emitted by scripts/gtfs-ingest.ts */
@@ -23,12 +28,31 @@ export interface RailLine {
 export interface RailData {
   lines: RailLine[];
   stations: RailStation[];
+  /** feeder-bus routes (category "BUS"), same shape as rail lines */
+  busLines?: RailLine[];
+  /** feeder-bus stop dots for the map — [lng, lat] */
+  busStops?: [number, number][];
 }
 
 export interface RailGraphData {
   headwayMinByRoute: Record<string, number>;
-  nodes: Record<string, { name: string; lat: number; lng: number; route: string }>;
+  nodes: Record<
+    string,
+    { name: string; lat: number; lng: number; route: string; kind?: "bus" }
+  >;
   edges: [string, string, number, "ride" | "xfer"][];
+}
+
+/** The same graph without bus stops/edges — for commuting by rail alone. */
+export function stripBus(data: RailGraphData): RailGraphData {
+  const nodes = Object.fromEntries(
+    Object.entries(data.nodes).filter(([, n]) => n.kind !== "bus")
+  );
+  return {
+    headwayMinByRoute: data.headwayMinByRoute,
+    nodes,
+    edges: data.edges.filter(([a, b]) => nodes[a] && nodes[b]),
+  };
 }
 
 interface Adj {
@@ -66,14 +90,30 @@ export interface Commute {
 const MAX_OFFICE_WALK_MIN = 20;
 const MAX_LISTING_WALK_MIN = 35;
 const CANDIDATE_STATIONS = 4;
+// with buses in the graph, look wider — nearby stops can crowd out the better rail option
+const CANDIDATE_NODES_WITH_BUS = 8;
+const CANDIDATE_RAIL_BACKUP = 2;
+
+type NodeEntry = {
+  id: string;
+  name: string;
+  lat: number;
+  lng: number;
+  route: string;
+  kind?: "bus";
+};
 
 export class RailGraph {
   private adj = new Map<string, Adj[]>();
   readonly nodes: RailGraphData["nodes"];
+  readonly hasBus: boolean;
   private headways: Record<string, number>;
+  private nodeList: NodeEntry[];
 
   constructor(data: RailGraphData) {
     this.nodes = data.nodes;
+    this.nodeList = Object.entries(data.nodes).map(([id, n]) => ({ id, ...n }));
+    this.hasBus = this.nodeList.some((n) => n.kind === "bus");
     this.headways = data.headwayMinByRoute;
     for (const [a, b, secs, type] of data.edges) {
       if (!data.nodes[a] || !data.nodes[b]) continue;
@@ -98,18 +138,21 @@ export class RailGraph {
     return this.headways[route] ?? 6;
   }
 
-  /** Stations sorted by straight-line distance from a point. */
-  nearestStations(lat: number, lng: number, count: number, maxWalkMin: number) {
-    return Object.entries(this.nodes)
-      .map(([id, n]) => ({
-        id,
-        ...n,
-        meters: haversineMeters(lat, lng, n.lat, n.lng),
-        walkMin: walkMinutesEstimate(lat, lng, n.lat, n.lng),
-      }))
-      .filter((s) => s.walkMin <= maxWalkMin)
-      .sort((a, b) => a.meters - b.meters)
-      .slice(0, count);
+  /** The `count` nearest stations within walking range (single pass, top-k). */
+  nearestStations(lat: number, lng: number, count: number, maxWalkMin: number, railOnly = false) {
+    const maxMeters = maxWalkMin / (metersToWalkMinutes(1) * DETOUR_FACTOR);
+    const top: (NodeEntry & { meters: number })[] = [];
+    for (const n of this.nodeList) {
+      if (railOnly && n.kind === "bus") continue;
+      const meters = haversineMeters(lat, lng, n.lat, n.lng);
+      if (meters > maxMeters) continue;
+      if (top.length === count && meters >= top[top.length - 1].meters) continue;
+      let i = top.length;
+      while (i > 0 && top[i - 1].meters > meters) i--;
+      top.splice(i, 0, { ...n, meters });
+      if (top.length > count) top.pop();
+    }
+    return top.map((s) => ({ ...s, walkMin: metersToWalkMinutes(s.meters * DETOUR_FACTOR) }));
   }
 
   /**
@@ -189,7 +232,18 @@ export class RailGraph {
     routing: OfficeRouting,
     walkEntries?: WalkEntry[]
   ): Commute | null {
-    const candidates = this.nearestStations(lat, lng, CANDIDATE_STATIONS, MAX_LISTING_WALK_MIN);
+    const candidates = this.nearestStations(
+      lat,
+      lng,
+      this.hasBus ? CANDIDATE_NODES_WITH_BUS : CANDIDATE_STATIONS,
+      MAX_LISTING_WALK_MIN
+    );
+    if (this.hasBus) {
+      // dense bus stops can fill every slot; always consider the nearest rail too
+      for (const r of this.nearestStations(lat, lng, CANDIDATE_RAIL_BACKUP, MAX_LISTING_WALK_MIN, true)) {
+        if (!candidates.some((c) => c.id === r.id)) candidates.push(r);
+      }
+    }
     let best: Commute | null = null;
 
     for (const c of candidates) {

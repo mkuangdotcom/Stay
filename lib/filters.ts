@@ -10,6 +10,8 @@ export interface FilterState {
   maxCommuteMin: number | null;
   keyword: string;
   activeOnly: boolean;
+  /** only listings first seen within the last N days (null = any time) */
+  maxAgeDays: number | null;
 }
 
 export const DEFAULT_FILTERS: FilterState = {
@@ -21,6 +23,7 @@ export const DEFAULT_FILTERS: FilterState = {
   maxCommuteMin: null,
   keyword: "",
   activeOnly: true,
+  maxAgeDays: null,
 };
 
 export function applyFilters(
@@ -29,8 +32,11 @@ export function applyFilters(
   f: FilterState
 ): Listing[] {
   const kw = f.keyword.trim().toLowerCase();
+  const seenAfter =
+    f.maxAgeDays !== null ? new Date(Date.now() - f.maxAgeDays * 864e5).toISOString() : null;
   return listings.filter((l) => {
     if (f.activeOnly && !l.isActive) return false;
+    if (seenAfter !== null && l.firstSeen < seenAfter) return false;
     if (f.priceMin !== null && l.priceRm < f.priceMin) return false;
     if (f.priceMax !== null && l.priceRm > f.priceMax) return false;
     if (f.roomTypes.length && !f.roomTypes.includes(l.roomType)) return false;
