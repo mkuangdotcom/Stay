@@ -34,18 +34,8 @@ interface Props {
   onResetOffice: () => void;
   lineColors: Record<string, string>;
   lineNames: Record<string, string>;
-  isGuest: boolean;
   loaded: boolean;
   onSignOut: () => void;
-}
-
-function CogIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <circle cx="12" cy="12" r="3" />
-      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-    </svg>
-  );
 }
 
 function LogoutIcon() {
@@ -73,25 +63,13 @@ export function Sidebar(p: Props) {
           STAY<span className="text-accent">.</span>
         </h1>
         <div className="flex items-center gap-1.5">
-          {!p.isGuest && (
-            <>
-              <Link href="/admin" className="btn text-[12px]">
-                + Add listing
-              </Link>
-              <Link
-                href="/admin?tab=users"
-                className="btn px-2 text-muted hover:text-text"
-                title="Admin settings"
-                aria-label="Admin settings"
-              >
-                <CogIcon />
-              </Link>
-            </>
-          )}
+          <Link href="/admin" className="btn text-[12px]">
+            + Add listing
+          </Link>
           <button
             className="btn px-2 text-muted hover:text-text"
             onClick={p.onSignOut}
-            title={p.isGuest ? "Sign out (guest)" : "Sign out"}
+            title="Sign out"
             aria-label="Sign out"
           >
             <LogoutIcon />
@@ -286,16 +264,14 @@ export function Sidebar(p: Props) {
           <span className="label">
             {p.listings.length} of {p.totalCount}
           </span>
-          {!p.isGuest && (
-            <button
-              className="chip"
-              data-on={f.favOnly}
-              onClick={() => set({ favOnly: !f.favOnly })}
-              title="Show only starred listings"
-            >
-              ★ Favs
-            </button>
-          )}
+          <button
+            className="chip"
+            data-on={f.favOnly}
+            onClick={() => set({ favOnly: !f.favOnly })}
+            title="Show only starred listings"
+          >
+            ★ Favs
+          </button>
         </div>
         <div className="flex items-center gap-1.5">
           <select
@@ -329,7 +305,6 @@ export function Sidebar(p: Props) {
             selected={l.id === p.selectedId}
             onClick={() => p.onSelect(l.id)}
             onToggleFav={() => p.onToggleFav(l.id)}
-            showFav={!p.isGuest}
             lineColors={p.lineColors}
             lineNames={p.lineNames}
           />
@@ -350,7 +325,6 @@ function ListingRow({
   selected,
   onClick,
   onToggleFav,
-  showFav,
   lineColors,
   lineNames,
 }: {
@@ -359,7 +333,6 @@ function ListingRow({
   selected: boolean;
   onClick: () => void;
   onToggleFav: () => void;
-  showFav: boolean;
   lineColors: Record<string, string>;
   lineNames: Record<string, string>;
 }) {
@@ -372,7 +345,6 @@ function ListingRow({
       aria-pressed={selected}
     >
       <div className="flex items-baseline justify-between gap-2">
-        {showFav && (
         <span
           role="button"
           tabIndex={0}
@@ -394,7 +366,6 @@ function ListingRow({
         >
           {l.isFav ? "★" : "☆"}
         </span>
-        )}
         <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium">
           {l.propertyName || l.title}
         </span>

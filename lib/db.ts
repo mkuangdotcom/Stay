@@ -22,12 +22,6 @@ export interface Db {
   setWalkEntries(listingId: string, entries: WalkEntry[]): Promise<void>;
   addPricePoints(points: PricePoint[]): Promise<void>;
   listPriceHistory(): Promise<PricePoint[]>;
-  /** Guest accounts the owner manages from /admin. */
-  listUsers(): Promise<{ username: string; createdAt: string }[]>;
-  getUserCreds(username: string): Promise<{ salt: string; hash: string } | null>;
-  createUser(username: string, salt: string, hash: string): Promise<void>;
-  updateUserPassword(username: string, salt: string, hash: string): Promise<void>;
-  deleteUser(username: string): Promise<void>;
 }
 
 /* ---------------------------- file backend ---------------------------- */
@@ -127,47 +121,7 @@ const fileDb: Db = {
   async listPriceHistory() {
     return readJson<PricePoint[]>("price-history.json", []);
   },
-
-  async listUsers() {
-    return readJson<FileUser[]>("users.json", []).map((u) => ({
-      username: u.username,
-      createdAt: u.createdAt,
-    }));
-  },
-
-  async getUserCreds(username) {
-    const u = readJson<FileUser[]>("users.json", []).find((x) => x.username === username);
-    return u ? { salt: u.salt, hash: u.hash } : null;
-  },
-
-  async createUser(username, salt, hash) {
-    const all = readJson<FileUser[]>("users.json", []);
-    if (all.some((u) => u.username === username)) throw new Error("username taken");
-    all.push({ username, salt, hash, createdAt: new Date().toISOString() });
-    writeJson("users.json", all);
-  },
-
-  async updateUserPassword(username, salt, hash) {
-    const all = readJson<FileUser[]>("users.json", []);
-    const u = all.find((x) => x.username === username);
-    if (!u) throw new Error("user not found");
-    u.salt = salt;
-    u.hash = hash;
-    writeJson("users.json", all);
-  },
-
-  async deleteUser(username) {
-    const all = readJson<FileUser[]>("users.json", []);
-    writeJson("users.json", all.filter((u) => u.username !== username));
-  },
 };
-
-interface FileUser {
-  username: string;
-  salt: string;
-  hash: string;
-  createdAt: string;
-}
 
 /* -------------------------- supabase backend -------------------------- */
 
@@ -376,44 +330,6 @@ function makeSupabaseDb(client: SupabaseClient): Db {
       }));
     },
 
-    async listUsers() {
-      const { data, error } = await client
-        .from("users")
-        .select("username, created_at")
-        .order("created_at");
-      if (error) throw error;
-      return (data ?? []).map((r) => ({ username: r.username, createdAt: r.created_at }));
-    },
-
-    async getUserCreds(username) {
-      const { data, error } = await client
-        .from("users")
-        .select("pass_salt, pass_hash")
-        .eq("username", username)
-        .maybeSingle();
-      if (error) throw error;
-      return data ? { salt: data.pass_salt, hash: data.pass_hash } : null;
-    },
-
-    async createUser(username, salt, hash) {
-      const { error } = await client
-        .from("users")
-        .insert({ username, pass_salt: salt, pass_hash: hash });
-      if (error) throw error;
-    },
-
-    async updateUserPassword(username, salt, hash) {
-      const { error } = await client
-        .from("users")
-        .update({ pass_salt: salt, pass_hash: hash })
-        .eq("username", username);
-      if (error) throw error;
-    },
-
-    async deleteUser(username) {
-      const { error } = await client.from("users").delete().eq("username", username);
-      if (error) throw error;
-    },
   };
 }
 

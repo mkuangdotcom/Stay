@@ -57,9 +57,6 @@ function Admin() {
   const [status, setStatus] = useState<string | null>(null);
   const [tableFilter, setTableFilter] = useState("");
   const params = useSearchParams();
-  const [tab, setTab] = useState<"listings" | "users">(
-    params.get("tab") === "users" ? "users" : "listings"
-  );
 
   const load = () =>
     fetch("/api/listings")
@@ -81,7 +78,6 @@ function Admin() {
   }, [params, listings.length]);
 
   function startEdit(l: Listing) {
-    setTab("listings");
     setForm({
       id: l.id,
       url: l.url ?? "",
@@ -167,35 +163,18 @@ function Admin() {
   return (
     <div className="h-dvh overflow-y-auto bg-ink">
       <header className="sticky top-0 z-10 flex items-center justify-between border-b border-edge bg-ink/95 px-5 py-3 backdrop-blur">
-        <div className="flex items-center gap-4">
+        <div className="flex items-baseline gap-3">
           <h1 className="text-[15px] font-bold tracking-[0.14em]">
             STAY<span className="text-accent">.</span>
           </h1>
-          <nav className="flex gap-1">
-            <button
-              className="chip"
-              data-on={tab === "listings"}
-              onClick={() => setTab("listings")}
-            >
-              Listings
-            </button>
-            <button className="chip" data-on={tab === "users"} onClick={() => setTab("users")}>
-              Users
-            </button>
-          </nav>
+          <span className="label">Listings admin</span>
         </div>
         <Link href="/" className="btn">
           ← Back to map
         </Link>
       </header>
 
-      {tab === "users" && <GuestAccess />}
-
-      <main
-        className={`mx-auto grid max-w-[1100px] gap-6 p-5 lg:grid-cols-[1fr_1fr] ${
-          tab === "listings" ? "" : "hidden"
-        }`}
-      >
+      <main className="mx-auto grid max-w-[1100px] gap-6 p-5 lg:grid-cols-[1fr_1fr]">
         {/* form */}
         <form onSubmit={save} className="space-y-3">
           <h2 className="text-[14px] font-semibold">
@@ -395,7 +374,7 @@ function Admin() {
       </main>
 
       {/* table */}
-      <section className={`mx-auto max-w-[1100px] px-5 pb-10 ${tab === "listings" ? "" : "hidden"}`}>
+      <section className="mx-auto max-w-[1100px] px-5 pb-10">
         <div className="flex items-center justify-between border-b border-edge pb-2">
           <h2 className="text-[14px] font-semibold">All listings ({listings.length})</h2>
           <input
@@ -458,118 +437,6 @@ function Admin() {
         </table>
       </section>
     </div>
-  );
-}
-
-/* ----------------------- guest access ----------------------- */
-
-/** Owner hands out revocable username+password pairs (read-only site access). */
-function GuestAccess() {
-  const [users, setUsers] = useState<{ username: string; createdAt: string }[]>([]);
-  const [name, setName] = useState("");
-  const [pw, setPw] = useState("");
-  const [msg, setMsg] = useState<string | null>(null);
-
-  const load = () =>
-    fetch("/api/users")
-      .then((r) => r.json())
-      .then((d) => setUsers(d.users ?? []))
-      .catch(() => {});
-  useEffect(() => {
-    load();
-  }, []);
-
-  async function add(e: React.FormEvent) {
-    e.preventDefault();
-    setMsg(null);
-    const res = await fetch("/api/users", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ username: name, password: pw }),
-    });
-    if (res.ok) {
-      setMsg(`Created "${name.toLowerCase().trim()}" — share the username + password.`);
-      setName("");
-      setPw("");
-      load();
-    } else {
-      setMsg((await res.json()).error ?? "Failed");
-    }
-  }
-
-  async function revoke(username: string) {
-    if (!confirm(`Delete "${username}"? Their access stops within a minute.`)) return;
-    await fetch(`/api/users/${encodeURIComponent(username)}`, { method: "DELETE" });
-    load();
-  }
-
-  async function resetPassword(username: string) {
-    const pw = prompt(`New password for "${username}" (min 8 characters):`);
-    if (pw === null) return;
-    const res = await fetch(`/api/users/${encodeURIComponent(username)}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ password: pw }),
-    });
-    setMsg(res.ok ? `Password updated for "${username}".` : (await res.json()).error ?? "Failed");
-  }
-
-  return (
-    <section id="guests" className="mx-auto max-w-[1100px] scroll-mt-16 px-5 py-5">
-      <h2 className="text-[14px] font-semibold">Users ({users.length})</h2>
-      <p className="mt-1 text-[12px] text-faint">
-        Accounts can browse everything, read-only. No admin access.
-      </p>
-      <form onSubmit={add} className="mt-3 flex flex-wrap items-center gap-2">
-        <input
-          className="field w-[180px]"
-          placeholder="username"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          aria-label="New guest username"
-        />
-        <input
-          className="field w-[200px]"
-          type="text"
-          placeholder="password (min 8 chars)"
-          value={pw}
-          onChange={(e) => setPw(e.target.value)}
-          aria-label="New guest password"
-        />
-        <button className="btn btn-accent" disabled={!name.trim() || pw.length < 8}>
-          Add user
-        </button>
-        {msg && <span className="text-[12px] text-muted">{msg}</span>}
-      </form>
-      {users.length > 0 && (
-        <table className="mt-3 w-full max-w-[560px] text-[12px]">
-          <tbody>
-            {users.map((u) => (
-              <tr key={u.username} className="border-t border-edge/60">
-                <td className="py-2 font-mono">{u.username}</td>
-                <td className="py-2 text-faint">
-                  since {new Date(u.createdAt).toLocaleDateString("en-MY")}
-                </td>
-                <td className="py-2 text-right">
-                  <button
-                    className="text-muted hover:underline"
-                    onClick={() => resetPassword(u.username)}
-                  >
-                    Reset password
-                  </button>
-                  <button
-                    className="ml-4 text-bad hover:underline"
-                    onClick={() => revoke(u.username)}
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </section>
   );
 }
 

@@ -49,15 +49,6 @@ create table if not exists walk_cache (
   primary key (listing_id, station_id)
 );
 
--- Guest accounts the owner hands out from /admin (revocable any time)
-create table if not exists users (
-  username   text primary key,
-  pass_salt  text not null,
-  pass_hash  text not null,
-  created_at timestamptz not null default now()
-);
-
 alter table listings enable row level security;
 alter table price_history enable row level security;
 alter table walk_cache enable row level security;
-alter table users enable row level security;

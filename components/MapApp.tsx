@@ -26,8 +26,6 @@ const WIDTH_KEY = "stay.sidebar-width";
 export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGraphData }) {
   const [listings, setListings] = useState<Listing[]>([]);
   const [listingsLoaded, setListingsLoaded] = useState(false);
-  // null = role not read yet — treat as guest so admin controls never flash
-  const [isGuest, setIsGuest] = useState<boolean | null>(null);
   const [walkCache, setWalkCache] = useState<WalkCache>({});
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const [sort, setSort] = useState<SortMode>("commute");
@@ -97,9 +95,8 @@ export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGra
     localStorage.setItem(OFFICE_KEY, JSON.stringify({ ...pos, label }));
   };
 
-  /* data + role */
+  /* data */
   useEffect(() => {
-    setIsGuest(document.cookie.includes("stay_role=guest"));
     fetch("/api/listings")
       .then((r) => r.json())
       .then((d) => {
@@ -234,7 +231,6 @@ export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGra
           onResetOffice={() => moveOffice(DEFAULT_OFFICE)}
           lineColors={lineColors}
           lineNames={lineNames}
-          isGuest={isGuest ?? true}
           loaded={listingsLoaded}
           onSignOut={signOut}
         />
@@ -287,7 +283,6 @@ export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGra
               onToggleFav={toggleFav}
               lineColors={lineColors}
               lineNames={lineNames}
-              isGuest={isGuest ?? true}
             />
           )}
         </div>

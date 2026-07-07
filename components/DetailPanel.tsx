@@ -13,7 +13,6 @@ export function DetailPanel({
   onToggleFav,
   lineColors,
   lineNames,
-  isGuest = false,
 }: {
   listing: Listing;
   commute: Commute | null;
@@ -21,7 +20,6 @@ export function DetailPanel({
   onToggleFav: (id: string) => void;
   lineColors: Record<string, string>;
   lineNames: Record<string, string>;
-  isGuest?: boolean;
 }) {
   const [photoIdx, setPhotoIdx] = useState(0);
   const photos = l.photos.filter(Boolean);
@@ -57,17 +55,15 @@ export function DetailPanel({
         <div className="flex items-start justify-between gap-2">
           <h2 className="text-[14px] font-semibold leading-snug">{l.title}</h2>
           <div className="flex shrink-0 items-center gap-1">
-            {!isGuest && (
-              <button
-                onClick={() => onToggleFav(l.id)}
-                aria-label={l.isFav ? "Remove star" : "Star listing"}
-                className={`grid h-6 w-6 place-items-center rounded-md text-[15px] hover:bg-panel ${
-                  l.isFav ? "text-accent" : "text-muted hover:text-text"
-                }`}
-              >
-                {l.isFav ? "★" : "☆"}
-              </button>
-            )}
+            <button
+              onClick={() => onToggleFav(l.id)}
+              aria-label={l.isFav ? "Remove star" : "Star listing"}
+              className={`grid h-6 w-6 place-items-center rounded-md text-[15px] hover:bg-panel ${
+                l.isFav ? "text-accent" : "text-muted hover:text-text"
+              }`}
+            >
+              {l.isFav ? "★" : "☆"}
+            </button>
             <button
               onClick={onClose}
               aria-label="Close"
@@ -133,11 +129,9 @@ export function DetailPanel({
               Open listing ↗
             </a>
           )}
-          {!isGuest && (
-            <a href={`/admin?edit=${l.id}`} className="btn">
-              Edit
-            </a>
-          )}
+          <a href={`/admin?edit=${l.id}`} className="btn">
+            Edit
+          </a>
         </div>
       </div>
     </div>
