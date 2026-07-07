@@ -195,14 +195,16 @@ export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGra
         style={{ width: `min(${sidebarWidth}px, 92vw)` }}
       >
         {/* collapse — floats just outside the sidebar edge, above everything */}
-        <button
-          className="btn absolute -right-9 top-3 z-20 px-2"
-          onClick={() => setSidebarOpen(false)}
-          aria-label="Hide sidebar"
-          title="Hide sidebar"
-        >
-          ‹
-        </button>
+        {sidebarOpen && (
+          <button
+            className="btn absolute -right-9 top-3 z-20 px-2"
+            onClick={() => setSidebarOpen(false)}
+            aria-label="Hide sidebar"
+            title="Hide sidebar"
+          >
+            ‹
+          </button>
+        )}
         {/* drag to resize (desktop) */}
         <div
           className="absolute -right-0.5 top-0 z-10 hidden h-full w-2 cursor-col-resize hover:bg-accent/40 md:block"
