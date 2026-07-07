@@ -11,8 +11,8 @@ commute time. It refreshes itself every morning — you just browse.
 
 | Who | How |
 |---|---|
-| **You (owner)** | Leave the username empty, enter the site password. |
-| **Guests** | Enter the username + password you created for them (see *Sharing* below). |
+| **Admin (you)** | Username `mkuangdotcom` + the site password. Full access. |
+| **Everyone else** | The username + password you created for them (see *Sharing* below). No admin access. |
 
 The ⏻ button in the sidebar header signs you out.
 

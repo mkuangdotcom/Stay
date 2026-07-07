@@ -19,14 +19,20 @@ export async function DELETE() {
 }
 
 export async function POST(req: NextRequest) {
-  const { username, password } = await req.json();
+  const body = await req.json();
+  const username = String(body.username ?? "").toLowerCase().trim();
+  const password = String(body.password ?? "");
   const expected = process.env.SITE_PASSWORD;
   if (!expected) return NextResponse.json({ ok: true });
-
-  // owner: password only
   if (!username) {
+    return NextResponse.json({ error: "Username required" }, { status: 400 });
+  }
+
+  // the admin account — full access incl. /admin and user management
+  const adminUser = (process.env.ADMIN_USERNAME ?? "mkuangdotcom").toLowerCase();
+  if (username === adminUser) {
     if (password !== expected) {
-      return NextResponse.json({ error: "Wrong password" }, { status: 401 });
+      return NextResponse.json({ error: "Wrong username or password" }, { status: 401 });
     }
     const res = NextResponse.json({ ok: true, role: "owner" });
     res.cookies.set("stay_session", await sessionToken(expected), {
@@ -42,17 +48,16 @@ export async function POST(req: NextRequest) {
     return res;
   }
 
-  // guest: username + their own password
-  const creds = await db.getUserCreds(String(username).toLowerCase().trim());
-  if (!creds || (await hashPassword(String(password), creds.salt)) !== creds.hash) {
+  // regular account created by the admin — no admin privileges
+  const creds = await db.getUserCreds(username);
+  if (!creds || (await hashPassword(password, creds.salt)) !== creds.hash) {
     return NextResponse.json({ error: "Wrong username or password" }, { status: 401 });
   }
   const res = NextResponse.json({ ok: true, role: "guest" });
-  res.cookies.set(
-    "stay_guest",
-    await signGuestToken(String(username).toLowerCase().trim(), expected),
-    { ...COOKIE_OPTS, maxAge: 60 * 60 * 24 * 30 }
-  );
+  res.cookies.set("stay_guest", await signGuestToken(username, expected), {
+    ...COOKIE_OPTS,
+    maxAge: 60 * 60 * 24 * 30,
+  });
   res.cookies.set("stay_role", "guest", {
     ...COOKIE_OPTS,
     httpOnly: false,

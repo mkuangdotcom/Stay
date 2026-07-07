@@ -26,14 +26,14 @@ function LoginForm() {
     const res = await fetch("/api/auth", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ username: username.trim() || undefined, password }),
+      body: JSON.stringify({ username: username.trim(), password }),
     });
     setBusy(false);
     if (res.ok) {
       router.replace(params.get("from") ?? "/");
       router.refresh();
     } else {
-      setError(username.trim() ? "Wrong username or password" : "Wrong password");
+      setError("Wrong username or password");
     }
   }
 
@@ -46,15 +46,15 @@ function LoginForm() {
         <input
           type="text"
           autoComplete="username"
+          autoFocus
           className="field mt-6"
-          placeholder="Username (optional)"
+          placeholder="Username"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
-          aria-label="Username (guests only)"
+          aria-label="Username"
         />
         <input
           type="password"
-          autoFocus
           autoComplete="current-password"
           className="field mt-2"
           placeholder="Password"
@@ -63,7 +63,7 @@ function LoginForm() {
           aria-label="Password"
         />
         {error && <p className="mt-2 text-[12px] text-bad">{error}</p>}
-        <button className="btn btn-accent mt-3 w-full" disabled={busy || !password}>
+        <button className="btn btn-accent mt-3 w-full" disabled={busy || !password || !username.trim()}>
           {busy ? "Checking…" : "Enter"}
         </button>
       </form>

@@ -22,6 +22,9 @@ export async function POST(req: NextRequest) {
   if (password.length < 8) {
     return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 });
   }
+  if (username === (process.env.ADMIN_USERNAME ?? "mkuangdotcom").toLowerCase()) {
+    return NextResponse.json({ error: "That username is reserved" }, { status: 400 });
+  }
   if (await db.getUserCreds(username)) {
     return NextResponse.json({ error: "That username already exists" }, { status: 409 });
   }

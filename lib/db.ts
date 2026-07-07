@@ -240,16 +240,25 @@ function makeSupabaseDb(client: SupabaseClient): Db {
     },
 
     async upsertListings(rows) {
-      // fetch existing keys to detect price changes / preserve first_seen
+      // fetch existing keys to detect price changes / preserve first_seen + stars
       const existing = (await selectAll(
         client,
         "listings",
-        "id, source, source_id, price_rm, first_seen"
-      )) as { id: string; source: string; source_id: string; price_rm: number; first_seen: string }[];
+        "id, source, source_id, price_rm, first_seen, is_fav"
+      )) as {
+        id: string;
+        source: string;
+        source_id: string;
+        price_rm: number;
+        first_seen: string;
+        is_fav: boolean;
+      }[];
       const byKey = new Map(existing.map((r) => [`${r.source}|${r.source_id}`, r]));
       const pricePoints: PricePoint[] = [];
       let created = 0,
         updated = 0;
+      // every row must carry the same keys: PostgREST bulk upserts fill
+      // missing columns with NULL (not the default), clobbering is_fav
       const payload = rows.map((row) => {
         const prev = byKey.get(`${row.source}|${row.sourceId}`);
         if (prev) {
@@ -257,11 +266,16 @@ function makeSupabaseDb(client: SupabaseClient): Db {
           if (prev.price_rm !== row.priceRm) {
             pricePoints.push({ listingId: prev.id, priceRm: row.priceRm, seenAt: row.lastSeen });
           }
-          return listingToRow({ ...row, id: prev.id, firstSeen: prev.first_seen });
+          return listingToRow({
+            ...row,
+            id: prev.id,
+            firstSeen: prev.first_seen,
+            isFav: row.isFav ?? !!prev.is_fav,
+          });
         }
         created++;
         pricePoints.push({ listingId: row.id, priceRm: row.priceRm, seenAt: row.firstSeen });
-        return listingToRow(row);
+        return listingToRow({ ...row, isFav: row.isFav ?? false });
       });
       const { error } = await client
         .from("listings")
