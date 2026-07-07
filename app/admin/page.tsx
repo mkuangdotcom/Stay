@@ -485,7 +485,7 @@ function GuestAccess() {
   }
 
   return (
-    <section className="mx-auto max-w-[1100px] px-5 pb-10">
+    <section id="guests" className="mx-auto max-w-[1100px] scroll-mt-16 px-5 pb-10">
       <h2 className="text-[14px] font-semibold">Guest access ({users.length})</h2>
       <p className="mt-1 text-[12px] text-faint">
         Guests can browse everything but can’t edit listings or open this admin page.

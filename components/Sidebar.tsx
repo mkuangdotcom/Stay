@@ -56,9 +56,19 @@ export function Sidebar(p: Props) {
         </h1>
         <div className="flex items-center gap-2">
           {!p.isGuest && (
-            <Link href="/admin" className="btn text-[12px]">
-              + Add listing
-            </Link>
+            <>
+              <Link href="/admin" className="btn text-[12px]">
+                + Add listing
+              </Link>
+              <Link
+                href="/admin#guests"
+                className="btn px-2.5 text-[13px]"
+                title="Manage users"
+                aria-label="Manage users"
+              >
+                👥
+              </Link>
+            </>
           )}
           <button
             className="btn px-2 text-[11px] text-muted"
