@@ -26,7 +26,8 @@ const WIDTH_KEY = "stay.sidebar-width";
 export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGraphData }) {
   const [listings, setListings] = useState<Listing[]>([]);
   const [listingsLoaded, setListingsLoaded] = useState(false);
-  const [isGuest, setIsGuest] = useState(false);
+  // null = role not read yet — treat as guest so admin controls never flash
+  const [isGuest, setIsGuest] = useState<boolean | null>(null);
   const [walkCache, setWalkCache] = useState<WalkCache>({});
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const [sort, setSort] = useState<SortMode>("commute");
@@ -223,7 +224,7 @@ export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGra
           lineColors={lineColors}
           lineNames={lineNames}
           onClose={() => setSidebarOpen(false)}
-          isGuest={isGuest}
+          isGuest={isGuest ?? true}
           loaded={listingsLoaded}
           onSignOut={signOut}
         />
@@ -273,7 +274,7 @@ export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGra
               onToggleFav={toggleFav}
               lineColors={lineColors}
               lineNames={lineNames}
-              isGuest={isGuest}
+              isGuest={isGuest ?? true}
             />
           )}
         </div>
