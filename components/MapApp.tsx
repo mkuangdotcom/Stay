@@ -190,10 +190,19 @@ export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGra
     <div className="flex h-dvh w-full overflow-hidden">
       <div
         className={`relative h-full transition-transform max-md:absolute max-md:z-30 ${
-          sidebarOpen ? "" : "max-md:-translate-x-full"
+          sidebarOpen ? "" : "max-md:-translate-x-full md:hidden"
         }`}
         style={{ width: `min(${sidebarWidth}px, 92vw)` }}
       >
+        {/* collapse — floats just outside the sidebar edge, above everything */}
+        <button
+          className="btn absolute -right-9 top-3 z-20 px-2"
+          onClick={() => setSidebarOpen(false)}
+          aria-label="Hide sidebar"
+          title="Hide sidebar"
+        >
+          ‹
+        </button>
         {/* drag to resize (desktop) */}
         <div
           className="absolute -right-0.5 top-0 z-10 hidden h-full w-2 cursor-col-resize hover:bg-accent/40 md:block"
@@ -223,7 +232,6 @@ export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGra
           onResetOffice={() => moveOffice(DEFAULT_OFFICE)}
           lineColors={lineColors}
           lineNames={lineNames}
-          onClose={() => setSidebarOpen(false)}
           isGuest={isGuest ?? true}
           loaded={listingsLoaded}
           onSignOut={signOut}
@@ -248,13 +256,16 @@ export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGra
         {/* overlays */}
         <div className="pointer-events-none absolute left-3 right-3 top-3 flex items-start justify-between gap-3">
           <div className="flex items-start gap-2">
-            <button
-              className="btn pointer-events-auto md:hidden"
-              onClick={() => setSidebarOpen((v) => !v)}
-              aria-label="Toggle sidebar"
-            >
-              ☰
-            </button>
+            {!sidebarOpen && (
+              <button
+                className="btn pointer-events-auto"
+                onClick={() => setSidebarOpen(true)}
+                aria-label="Show sidebar"
+                title="Show sidebar"
+              >
+                ☰
+              </button>
+            )}
             <LineChips
               lines={rail.lines}
               visible={visibleLines}

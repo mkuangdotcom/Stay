@@ -14,7 +14,8 @@ commute time. It refreshes itself every morning — you just browse.
 | **Admin (you)** | Username `mkuangdotcom` + the site password. Full access. |
 | **Everyone else** | The username + password you created for them (see *Sharing* below). No admin access. |
 
-The ⏻ button in the sidebar header signs you out.
+The exit icon at the top-right of the sidebar signs you out; the cog icon
+(admin only) opens settings.
 
 ---
 
@@ -85,14 +86,15 @@ Click any row or dot:
 The same page edits or deletes any listing (there's an *Edit* button on every
 listing's detail card too).
 
-## Sharing with friends (guest accounts)
+## Sharing with friends (user accounts)
 
-At the bottom of the admin page, **Guest access**:
+Cog icon → **Users** tab:
 
-- **Add guest** — pick a username + password (8+ chars) and share it. Guests
+- **Add user** — pick a username + password (8+ chars) and share it. Users
   see the full map with all filters, but they can't add/edit/star anything and
-  can't open the admin page.
-- **Revoke** — cuts their access within a minute, even mid-session.
+  can't open admin.
+- **Reset password** / **Delete** per user. Deleting cuts access within a minute,
+  even mid-session.
 
 ## How the data works (so you can trust it)
 

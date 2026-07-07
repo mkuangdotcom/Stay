@@ -57,6 +57,9 @@ function Admin() {
   const [status, setStatus] = useState<string | null>(null);
   const [tableFilter, setTableFilter] = useState("");
   const params = useSearchParams();
+  const [tab, setTab] = useState<"listings" | "users">(
+    params.get("tab") === "users" ? "users" : "listings"
+  );
 
   const load = () =>
     fetch("/api/listings")
@@ -78,6 +81,7 @@ function Admin() {
   }, [params, listings.length]);
 
   function startEdit(l: Listing) {
+    setTab("listings");
     setForm({
       id: l.id,
       url: l.url ?? "",
@@ -163,18 +167,35 @@ function Admin() {
   return (
     <div className="h-dvh overflow-y-auto bg-ink">
       <header className="sticky top-0 z-10 flex items-center justify-between border-b border-edge bg-ink/95 px-5 py-3 backdrop-blur">
-        <div className="flex items-baseline gap-3">
+        <div className="flex items-center gap-4">
           <h1 className="text-[15px] font-bold tracking-[0.14em]">
             STAY<span className="text-accent">.</span>
           </h1>
-          <span className="label">Listings admin</span>
+          <nav className="flex gap-1">
+            <button
+              className="chip"
+              data-on={tab === "listings"}
+              onClick={() => setTab("listings")}
+            >
+              Listings
+            </button>
+            <button className="chip" data-on={tab === "users"} onClick={() => setTab("users")}>
+              Users
+            </button>
+          </nav>
         </div>
         <Link href="/" className="btn">
           ← Back to map
         </Link>
       </header>
 
-      <main className="mx-auto grid max-w-[1100px] gap-6 p-5 lg:grid-cols-[1fr_1fr]">
+      {tab === "users" && <GuestAccess />}
+
+      <main
+        className={`mx-auto grid max-w-[1100px] gap-6 p-5 lg:grid-cols-[1fr_1fr] ${
+          tab === "listings" ? "" : "hidden"
+        }`}
+      >
         {/* form */}
         <form onSubmit={save} className="space-y-3">
           <h2 className="text-[14px] font-semibold">
@@ -374,7 +395,7 @@ function Admin() {
       </main>
 
       {/* table */}
-      <section className="mx-auto max-w-[1100px] px-5 pb-10">
+      <section className={`mx-auto max-w-[1100px] px-5 pb-10 ${tab === "listings" ? "" : "hidden"}`}>
         <div className="flex items-center justify-between border-b border-edge pb-2">
           <h2 className="text-[14px] font-semibold">All listings ({listings.length})</h2>
           <input
@@ -436,8 +457,6 @@ function Admin() {
           </tbody>
         </table>
       </section>
-
-      <GuestAccess />
     </div>
   );
 }
@@ -479,17 +498,27 @@ function GuestAccess() {
   }
 
   async function revoke(username: string) {
-    if (!confirm(`Revoke "${username}"? Their access stops within a minute.`)) return;
+    if (!confirm(`Delete "${username}"? Their access stops within a minute.`)) return;
     await fetch(`/api/users/${encodeURIComponent(username)}`, { method: "DELETE" });
     load();
   }
 
+  async function resetPassword(username: string) {
+    const pw = prompt(`New password for "${username}" (min 8 characters):`);
+    if (pw === null) return;
+    const res = await fetch(`/api/users/${encodeURIComponent(username)}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ password: pw }),
+    });
+    setMsg(res.ok ? `Password updated for "${username}".` : (await res.json()).error ?? "Failed");
+  }
+
   return (
-    <section id="guests" className="mx-auto max-w-[1100px] scroll-mt-16 px-5 pb-10">
-      <h2 className="text-[14px] font-semibold">Guest access ({users.length})</h2>
+    <section id="guests" className="mx-auto max-w-[1100px] scroll-mt-16 px-5 py-5">
+      <h2 className="text-[14px] font-semibold">Users ({users.length})</h2>
       <p className="mt-1 text-[12px] text-faint">
-        Guests can browse everything but can’t edit listings or open this admin page.
-        Revoking kicks them out within a minute.
+        Accounts can browse everything, read-only. No admin access.
       </p>
       <form onSubmit={add} className="mt-3 flex flex-wrap items-center gap-2">
         <input
@@ -508,7 +537,7 @@ function GuestAccess() {
           aria-label="New guest password"
         />
         <button className="btn btn-accent" disabled={!name.trim() || pw.length < 8}>
-          Add guest
+          Add user
         </button>
         {msg && <span className="text-[12px] text-muted">{msg}</span>}
       </form>
@@ -522,8 +551,17 @@ function GuestAccess() {
                   since {new Date(u.createdAt).toLocaleDateString("en-MY")}
                 </td>
                 <td className="py-2 text-right">
-                  <button className="text-bad hover:underline" onClick={() => revoke(u.username)}>
-                    Revoke
+                  <button
+                    className="text-muted hover:underline"
+                    onClick={() => resetPassword(u.username)}
+                  >
+                    Reset password
+                  </button>
+                  <button
+                    className="ml-4 text-bad hover:underline"
+                    onClick={() => revoke(u.username)}
+                  >
+                    Delete
                   </button>
                 </td>
               </tr>

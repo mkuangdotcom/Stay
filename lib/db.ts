@@ -26,6 +26,7 @@ export interface Db {
   listUsers(): Promise<{ username: string; createdAt: string }[]>;
   getUserCreds(username: string): Promise<{ salt: string; hash: string } | null>;
   createUser(username: string, salt: string, hash: string): Promise<void>;
+  updateUserPassword(username: string, salt: string, hash: string): Promise<void>;
   deleteUser(username: string): Promise<void>;
 }
 
@@ -143,6 +144,15 @@ const fileDb: Db = {
     const all = readJson<FileUser[]>("users.json", []);
     if (all.some((u) => u.username === username)) throw new Error("username taken");
     all.push({ username, salt, hash, createdAt: new Date().toISOString() });
+    writeJson("users.json", all);
+  },
+
+  async updateUserPassword(username, salt, hash) {
+    const all = readJson<FileUser[]>("users.json", []);
+    const u = all.find((x) => x.username === username);
+    if (!u) throw new Error("user not found");
+    u.salt = salt;
+    u.hash = hash;
     writeJson("users.json", all);
   },
 
@@ -389,6 +399,14 @@ function makeSupabaseDb(client: SupabaseClient): Db {
       const { error } = await client
         .from("users")
         .insert({ username, pass_salt: salt, pass_hash: hash });
+      if (error) throw error;
+    },
+
+    async updateUserPassword(username, salt, hash) {
+      const { error } = await client
+        .from("users")
+        .update({ pass_salt: salt, pass_hash: hash })
+        .eq("username", username);
       if (error) throw error;
     },
 

@@ -34,10 +34,28 @@ interface Props {
   onResetOffice: () => void;
   lineColors: Record<string, string>;
   lineNames: Record<string, string>;
-  onClose: () => void;
   isGuest: boolean;
   loaded: boolean;
   onSignOut: () => void;
+}
+
+function CogIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </svg>
+  );
+}
+
+function LogoutIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <polyline points="16 17 21 12 16 7" />
+      <line x1="21" y1="12" x2="9" y2="12" />
+    </svg>
+  );
 }
 
 export function Sidebar(p: Props) {
@@ -54,35 +72,29 @@ export function Sidebar(p: Props) {
         <h1 className="text-[17px] font-bold tracking-[0.14em]">
           STAY<span className="text-accent">.</span>
         </h1>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           {!p.isGuest && (
             <>
               <Link href="/admin" className="btn text-[12px]">
                 + Add listing
               </Link>
               <Link
-                href="/admin#guests"
-                className="btn px-2.5 text-[13px]"
-                title="Manage users"
-                aria-label="Manage users"
+                href="/admin?tab=users"
+                className="btn px-2 text-muted hover:text-text"
+                title="Admin settings"
+                aria-label="Admin settings"
               >
-                👥
+                <CogIcon />
               </Link>
             </>
           )}
           <button
-            className="btn px-2 text-[11px] text-muted"
+            className="btn px-2 text-muted hover:text-text"
             onClick={p.onSignOut}
-            title={p.isGuest ? "Signed in as guest" : "Sign out"}
+            title={p.isGuest ? "Sign out (guest)" : "Sign out"}
+            aria-label="Sign out"
           >
-            {p.isGuest ? "Guest ⏻" : "⏻"}
-          </button>
-          <button
-            className="btn px-2.5 md:hidden"
-            onClick={p.onClose}
-            aria-label="Show the map"
-          >
-            Map ›
+            <LogoutIcon />
           </button>
         </div>
       </header>
