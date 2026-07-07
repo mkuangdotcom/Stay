@@ -2,36 +2,43 @@
 
 Personal, private map for hunting rooms and units in Kuala Lumpur. Every listing is
 plotted against the full KL rail network with a computed door-to-door commute to the
-office (default: First Avenue, Bandar Utama — drag the yellow pin to change it).
+destination (default: First Avenue, Bandar Utama — drag the yellow pin or search an
+address to change it). Usage guide for humans: [HOWTO.md](HOWTO.md).
 
 - **Map**: MapLibre + OpenFreeMap tiles; all 8 rail lines toggleable, drawn from the
   official GTFS feed in their official colors, plus toggleable MRT/LRT feeder-bus
-  routes (headways derived from the schedule).
-- **Commute**: walk to the nearest stations (real OSRM foot routes, cached) + scheduled
-  ride times from GTFS + transfer/wait penalties, Dijkstra over the network. Listings
-  near the office get a plain walking estimate instead.
-- **Filters**: price, room type, source, max walk-to-rail, max door-to-door, keyword.
+  routes (headways derived from the schedule) and commute-time zones
+  (30/45/60-min isochrone bands, `lib/isochrone.ts`).
+- **Commute**: walk to the nearest stations/stops (real OSRM foot routes, cached) +
+  scheduled ride times from GTFS + transfer/wait penalties, Dijkstra over the
+  network. Listings near the destination get a plain walking estimate instead.
+- **Filters**: price, room type, source, max walk-to-rail, max door-to-door, keyword,
+  tenant gender, max commitment (min-stay months), posted-within, starred only.
+- **Per listing**: full route legs, price-history chart, shortlist star (synced via
+  the DB), gender/min-stay when stated.
 - **Stats**: min/median/max, price histogram, median by nearest station — always for
   the current filter.
 - **Sources**: iBilik, mudah.my (rooms + apartments; area-centroid pins) and
-  SpeedHome scrapers (automated daily); quick-add form for Facebook/WhatsApp/anything.
-  Listings carry tenant-gender restrictions and minimum-stay months where stated.
-  at `/admin`. mudah.my & SpeedHome are phase 2.
+  SpeedHome (exact pins, structured tenancy fields) scraped daily; quick-add form at
+  `/admin` for Facebook/WhatsApp/anything.
 
-Everything runs on free tiers: Vercel Hobby, Supabase free, data.gov.my GTFS,
-OpenFreeMap, FOSSGIS OSRM, Nominatim.
+One account gates the site: `ADMIN_USERNAME` + `SITE_PASSWORD`. Everything runs on
+free tiers: Vercel Hobby, Supabase free, data.gov.my GTFS, OpenFreeMap, FOSSGIS
+OSRM, Nominatim.
 
 ## Commands
 
 ```bash
 npm run dev            # app on http://localhost:3000
 npm run ingest:gtfs    # refresh data/rail.json + rail-graph.json from data.gov.my
-npm run scrape         # scrape iBilik + mudah.my, compute walk times (all configured areas)
-npm run scrape -- --areas=kuala-lumpur/ttdi --max-pages=1   # targeted run
+npm run scrape         # scrape iBilik + mudah.my + SpeedHome, compute walk times
+npm run scrape -- --source=ibilik --areas=kuala-lumpur/ttdi --max-pages=1  # targeted
 npm run scrape -- --refresh                                 # re-fetch known listings too
 npm run build          # production build
 ```
 
+mudah.my and SpeedHome load through headless Chromium — run
+`npx playwright install chromium` once before scraping locally.
 Scraper areas, page caps, and rate limits live in `scripts/config.ts`.
 
 ## Storage
@@ -46,15 +53,17 @@ the scraper switch to Supabase, which is what the deployed site uses.
    `supabase/schema.sql`. Grab *Project Settings → API*: the URL and the
    `service_role` key.
 2. **Local `.env.local`** (`cp .env.example .env.local`): set `SUPABASE_URL`,
-   `SUPABASE_SERVICE_KEY`, `SITE_PASSWORD`. Run `npm run scrape` once to fill the DB.
+   `SUPABASE_SERVICE_KEY`, `SITE_PASSWORD`, `ADMIN_USERNAME`. Run `npm run scrape`
+   once to fill the DB.
 3. **Vercel**: push this repo to GitHub → vercel.com → *Import project* → add the same
-   three env vars → deploy. The site reads Supabase live, so scrapes appear without
+   four env vars → deploy. The site reads Supabase live, so scrapes appear without
    redeploying.
 4. **Scheduling** (either works, data lands in the same DB):
    - *GitHub Actions* (hands-off): repo → Settings → Secrets → add `SUPABASE_URL` and
      `SUPABASE_SERVICE_KEY`. The workflow in `.github/workflows/scrape.yml` runs daily
      at 09:23 MYT; trigger it manually once from the Actions tab to test. It probes
-     iBilik first — if GitHub's IPs are blocked you'll see the probe step fail.
+     iBilik first — if GitHub's IPs are blocked it degrades to the browser-based
+     sources instead of failing.
    - *This Mac* (reliable fallback): `./scripts/install-launchd.sh` — daily at 09:23,
      logs to `.data/scrape.log`.
 
