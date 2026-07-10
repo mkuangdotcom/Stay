@@ -15,7 +15,11 @@ address to change it). Usage guide for humans: [HOWTO.md](HOWTO.md).
 - **Filters**: price, room type, source, max walk-to-rail, max door-to-door, keyword,
   tenant gender, max commitment (min-stay months), posted-within, starred only.
 - **Per listing**: full route legs, price-history chart, shortlist star (synced via
-  the DB), gender/min-stay when stated.
+  the DB), gender/min-stay when stated, lister phone/name where the source
+  publishes them (iBilik, Mudah).
+- **Outreach**: one-tap WhatsApp with a templated message (`lib/contact.ts`), and a
+  `/tracker` pipeline page — status/channel/viewing/agreed-rent/utilities per
+  contacted listing, with the auto-computed commute (manually overridable).
 - **Stats**: min/median/max, price histogram, median by nearest station — always for
   the current filter.
 - **Sources**: iBilik, mudah.my (rooms + apartments; area-centroid pins) and
@@ -51,7 +55,8 @@ the scraper switch to Supabase, which is what the deployed site uses.
 
 1. **Supabase**: create a free project at supabase.com → SQL editor → paste and run
    `supabase/schema.sql`. Grab *Project Settings → API*: the URL and the
-   `service_role` key.
+   `service_role` key. (Re-running the file on an existing project is safe — it
+   also applies column upgrades, so do that after pulling schema changes.)
 2. **Local `.env.local`** (`cp .env.example .env.local`): set `SUPABASE_URL`,
    `SUPABASE_SERVICE_KEY`, `SITE_PASSWORD`, `ADMIN_USERNAME`. Run `npm run scrape`
    once to fill the DB.

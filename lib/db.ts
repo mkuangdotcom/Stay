@@ -6,7 +6,7 @@
  */
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
-import type { Listing, PricePoint, WalkCache, WalkEntry } from "./types";
+import type { Listing, Outreach, PricePoint, WalkCache, WalkEntry } from "./types";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 export interface Db {
@@ -22,6 +22,9 @@ export interface Db {
   setWalkEntries(listingId: string, entries: WalkEntry[]): Promise<void>;
   addPricePoints(points: PricePoint[]): Promise<void>;
   listPriceHistory(): Promise<PricePoint[]>;
+  listOutreach(): Promise<Outreach[]>;
+  upsertOutreach(row: Outreach): Promise<void>;
+  deleteOutreach(listingId: string): Promise<void>;
 }
 
 /* ---------------------------- file backend ---------------------------- */
@@ -57,7 +60,13 @@ const fileDb: Db = {
         if (existing.priceRm !== row.priceRm) {
           pricePoints.push({ listingId: existing.id, priceRm: row.priceRm, seenAt: row.lastSeen });
         }
-        Object.assign(existing, row, { id: existing.id, firstSeen: existing.firstSeen });
+        Object.assign(existing, row, {
+          id: existing.id,
+          firstSeen: existing.firstSeen,
+          // a scrape that couldn't see the contact must not erase one we have
+          phone: row.phone ?? existing.phone ?? null,
+          contactName: row.contactName ?? existing.contactName ?? null,
+        });
         updated++;
       } else {
         byKey.set(key, row);
@@ -121,6 +130,23 @@ const fileDb: Db = {
   async listPriceHistory() {
     return readJson<PricePoint[]>("price-history.json", []);
   },
+
+  async listOutreach() {
+    return readJson<Outreach[]>("outreach.json", []);
+  },
+
+  async upsertOutreach(row) {
+    const all = readJson<Outreach[]>("outreach.json", []);
+    const idx = all.findIndex((o) => o.listingId === row.listingId);
+    if (idx === -1) all.push(row);
+    else all[idx] = row;
+    writeJson("outreach.json", all);
+  },
+
+  async deleteOutreach(listingId) {
+    const all = readJson<Outreach[]>("outreach.json", []);
+    writeJson("outreach.json", all.filter((o) => o.listingId !== listingId));
+  },
 };
 
 /* -------------------------- supabase backend -------------------------- */
@@ -144,6 +170,8 @@ function rowToListing(r: Record<string, unknown>): Listing {
     availableFrom: r.available_from as string | null,
     gender: (r.gender ?? null) as Listing["gender"],
     minTermMonths: (r.min_term_months ?? null) as number | null,
+    phone: (r.phone ?? null) as string | null,
+    contactName: (r.contact_name ?? null) as string | null,
     notes: r.notes as string | null,
     firstSeen: r.first_seen as string,
     lastSeen: r.last_seen as string,
@@ -171,6 +199,8 @@ function listingToRow(l: Partial<Listing>): Record<string, unknown> {
   if (l.availableFrom !== undefined) row.available_from = l.availableFrom;
   if (l.gender !== undefined) row.gender = l.gender;
   if (l.minTermMonths !== undefined) row.min_term_months = l.minTermMonths;
+  if (l.phone !== undefined) row.phone = l.phone;
+  if (l.contactName !== undefined) row.contact_name = l.contactName;
   if (l.notes !== undefined) row.notes = l.notes;
   if (l.firstSeen !== undefined) row.first_seen = l.firstSeen;
   if (l.lastSeen !== undefined) row.last_seen = l.lastSeen;
@@ -208,7 +238,7 @@ function makeSupabaseDb(client: SupabaseClient): Db {
       const existing = (await selectAll(
         client,
         "listings",
-        "id, source, source_id, price_rm, first_seen, is_fav"
+        "id, source, source_id, price_rm, first_seen, is_fav, phone, contact_name"
       )) as {
         id: string;
         source: string;
@@ -216,6 +246,8 @@ function makeSupabaseDb(client: SupabaseClient): Db {
         price_rm: number;
         first_seen: string;
         is_fav: boolean;
+        phone: string | null;
+        contact_name: string | null;
       }[];
       const byKey = new Map(existing.map((r) => [`${r.source}|${r.source_id}`, r]));
       const pricePoints: PricePoint[] = [];
@@ -235,6 +267,8 @@ function makeSupabaseDb(client: SupabaseClient): Db {
             id: prev.id,
             firstSeen: prev.first_seen,
             isFav: row.isFav ?? !!prev.is_fav,
+            phone: row.phone ?? prev.phone ?? null,
+            contactName: row.contactName ?? prev.contact_name ?? null,
           });
         }
         created++;
@@ -330,6 +364,45 @@ function makeSupabaseDb(client: SupabaseClient): Db {
       }));
     },
 
+    async listOutreach() {
+      const data = await selectAll(client, "outreach", "*");
+      return data.map((r) => ({
+        listingId: r.listing_id as string,
+        status: r.status as Outreach["status"],
+        channel: (r.channel ?? null) as Outreach["channel"],
+        contactedAt: (r.contacted_at ?? null) as string | null,
+        viewingAt: (r.viewing_at ?? null) as string | null,
+        agreedRm: (r.agreed_rm ?? null) as number | null,
+        utilities: (r.utilities ?? null) as string | null,
+        commuteMinOverride: (r.commute_min_override ?? null) as number | null,
+        notes: (r.notes ?? "") as string,
+        updatedAt: r.updated_at as string,
+      }));
+    },
+
+    async upsertOutreach(row) {
+      const { error } = await client.from("outreach").upsert(
+        {
+          listing_id: row.listingId,
+          status: row.status,
+          channel: row.channel,
+          contacted_at: row.contactedAt,
+          viewing_at: row.viewingAt,
+          agreed_rm: row.agreedRm,
+          utilities: row.utilities,
+          commute_min_override: row.commuteMinOverride,
+          notes: row.notes,
+          updated_at: row.updatedAt,
+        },
+        { onConflict: "listing_id" }
+      );
+      if (error) throw error;
+    },
+
+    async deleteOutreach(listingId) {
+      const { error } = await client.from("outreach").delete().eq("listing_id", listingId);
+      if (error) throw error;
+    },
   };
 }
 

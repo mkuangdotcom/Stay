@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { normalizePhoneMY } from "@/lib/contact";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   const { id } = await ctx.params;
   const patch = await req.json();
   delete patch.id;
+  if (patch.phone !== undefined) patch.phone = normalizePhoneMY(patch.phone);
   await db.updateListing(id, patch);
   return NextResponse.json({ ok: true });
 }

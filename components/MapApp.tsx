@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { Listing, WalkCache } from "@/lib/types";
+import { emptyOutreach, type Listing, type Outreach, type WalkCache } from "@/lib/types";
 import {
   RailGraph,
   stripBus,
@@ -15,10 +15,8 @@ import { MapView, type ColorMode, type ListingPoint } from "./MapView";
 import { Sidebar, type SortMode } from "./Sidebar";
 import { DetailPanel } from "./DetailPanel";
 import { LineChips } from "./LineChips";
+import { BUS_KEY, DEFAULT_OFFICE, OFFICE_KEY } from "@/lib/office";
 
-export const DEFAULT_OFFICE = { lat: 3.1458775, lng: 101.6173708 }; // First Avenue, Bandar Utama
-const OFFICE_KEY = "stay.office";
-const BUS_KEY = "stay.buses";
 const ISO_KEY = "stay.zones";
 const ISO_BANDS = [30, 45, 60];
 const WIDTH_KEY = "stay.sidebar-width";
@@ -27,6 +25,7 @@ export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGra
   const [listings, setListings] = useState<Listing[]>([]);
   const [listingsLoaded, setListingsLoaded] = useState(false);
   const [walkCache, setWalkCache] = useState<WalkCache>({});
+  const [outreach, setOutreach] = useState<Record<string, Outreach>>({});
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const [sort, setSort] = useState<SortMode>("commute");
   const [colorMode, setColorMode] = useState<ColorMode>("commute");
@@ -89,6 +88,34 @@ export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGra
     }).catch(() => {});
   };
 
+  /** Merge a patch into a listing's outreach record (creating it) and persist. */
+  const saveOutreach = (listingId: string, patch: Partial<Outreach>) => {
+    const next: Outreach = {
+      ...emptyOutreach(listingId),
+      ...outreach[listingId],
+      ...patch,
+      listingId,
+      updatedAt: new Date().toISOString(),
+    };
+    setOutreach((m) => ({ ...m, [listingId]: next }));
+    fetch("/api/outreach", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(next),
+    }).catch(() => {});
+  };
+
+  const untrack = (listingId: string) => {
+    setOutreach((m) => {
+      const rest = { ...m };
+      delete rest[listingId];
+      return rest;
+    });
+    fetch(`/api/outreach?listingId=${encodeURIComponent(listingId)}`, { method: "DELETE" }).catch(
+      () => {}
+    );
+  };
+
   const moveOffice = (pos: { lat: number; lng: number }, label?: string) => {
     setOffice(pos);
     setOfficeLabel(label ?? null);
@@ -105,6 +132,14 @@ export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGra
       })
       .catch(() => {})
       .finally(() => setListingsLoaded(true));
+    fetch("/api/outreach")
+      .then((r) => r.json())
+      .then((d) =>
+        setOutreach(
+          Object.fromEntries(((d.outreach ?? []) as Outreach[]).map((o) => [o.listingId, o]))
+        )
+      )
+      .catch(() => {});
   }, []);
 
   const signOut = async () => {
@@ -215,6 +250,7 @@ export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGra
           listings={sorted}
           totalCount={listings.length}
           commutes={commutes}
+          outreach={outreach}
           selectedId={selectedId}
           onSelect={(id) => {
             setSelectedId(id);
@@ -279,6 +315,9 @@ export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGra
             <DetailPanel
               listing={selected}
               commute={commutes.get(selected.id) ?? null}
+              outreach={outreach[selected.id] ?? null}
+              onOutreach={(patch) => saveOutreach(selected.id, patch)}
+              onUntrack={() => untrack(selected.id)}
               onClose={() => setSelectedId(null)}
               onToggleFav={toggleFav}
               lineColors={lineColors}

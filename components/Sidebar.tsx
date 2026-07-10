@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import type { Listing, RoomType, Source } from "@/lib/types";
-import { ROOM_TYPE_LABELS, SOURCE_LABELS } from "@/lib/types";
+import type { Listing, Outreach, RoomType, Source } from "@/lib/types";
+import { OUTREACH_STATUS_LABELS, ROOM_TYPE_LABELS, SOURCE_LABELS } from "@/lib/types";
 import type { FilterState } from "@/lib/filters";
 import type { Commute } from "@/lib/railGraph";
 import { StatsPanel } from "./StatsPanel";
@@ -21,6 +21,7 @@ interface Props {
   listings: Listing[]; // filtered
   totalCount: number;
   commutes: Map<string, Commute | null>;
+  outreach: Record<string, Outreach>;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   sort: SortMode;
@@ -63,8 +64,11 @@ export function Sidebar(p: Props) {
           STAY<span className="text-accent">.</span>
         </h1>
         <div className="flex items-center gap-1.5">
+          <Link href="/tracker" className="btn text-[12px]">
+            Tracker
+          </Link>
           <Link href="/admin" className="btn text-[12px]">
-            + Add listing
+            + Add
           </Link>
           <button
             className="btn px-2 text-muted hover:text-text"
@@ -302,6 +306,7 @@ export function Sidebar(p: Props) {
             key={l.id}
             listing={l}
             commute={p.commutes.get(l.id) ?? null}
+            outreach={p.outreach[l.id] ?? null}
             selected={l.id === p.selectedId}
             onClick={() => p.onSelect(l.id)}
             onToggleFav={() => p.onToggleFav(l.id)}
@@ -319,9 +324,18 @@ export function Sidebar(p: Props) {
   );
 }
 
+const STATUS_COLORS: Record<Outreach["status"], string> = {
+  contacted: "text-muted",
+  replied: "text-good",
+  viewing: "text-accent",
+  contract: "text-good",
+  dead: "text-faint line-through",
+};
+
 function ListingRow({
   listing: l,
   commute,
+  outreach,
   selected,
   onClick,
   onToggleFav,
@@ -330,6 +344,7 @@ function ListingRow({
 }: {
   listing: Listing;
   commute: Commute | null;
+  outreach: Outreach | null;
   selected: boolean;
   onClick: () => void;
   onToggleFav: () => void;
@@ -381,6 +396,11 @@ function ListingRow({
         {l.gender && <span className="shrink-0">· {l.gender === "female" ? "♀" : "♂"} only</span>}
         {l.minTermMonths !== null && l.minTermMonths > 1 && (
           <span className="shrink-0">· {l.minTermMonths}mo min</span>
+        )}
+        {outreach && (
+          <span className={`shrink-0 ${STATUS_COLORS[outreach.status]}`}>
+            · {OUTREACH_STATUS_LABELS[outreach.status].toLowerCase()}
+          </span>
         )}
         {l.isActive && Date.now() - new Date(l.firstSeen).getTime() < 864e5 && (
           <span className="ml-auto shrink-0 rounded bg-[#22a06b]/15 px-1.5 py-px text-[9.5px] font-semibold uppercase tracking-wide text-[#3ecf8e]">

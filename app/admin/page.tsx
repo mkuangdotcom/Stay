@@ -27,6 +27,8 @@ interface FormState {
   furnished: string;
   gender: string;
   minTermMonths: string;
+  phone: string;
+  contactName: string;
   photos: string;
   notes: string;
   lat: number | null;
@@ -45,6 +47,8 @@ const EMPTY: FormState = {
   furnished: "",
   gender: "",
   minTermMonths: "",
+  phone: "",
+  contactName: "",
   photos: "",
   notes: "",
   lat: null,
@@ -90,6 +94,8 @@ function Admin() {
       furnished: l.furnished ?? "",
       gender: l.gender ?? "",
       minTermMonths: l.minTermMonths !== null ? String(l.minTermMonths) : "",
+      phone: l.phone ?? "",
+      contactName: l.contactName ?? "",
       photos: l.photos.join("\n"),
       notes: l.notes ?? "",
       lat: l.lat,
@@ -115,6 +121,8 @@ function Admin() {
       furnished: form.furnished || null,
       gender: form.gender || null,
       minTermMonths: form.minTermMonths ? Number(form.minTermMonths) : null,
+      phone: form.phone.trim() || null,
+      contactName: form.contactName.trim() || null,
       photos: form.photos.split("\n").map((s) => s.trim()).filter(Boolean),
       notes: form.notes || null,
       lat: form.lat,
@@ -303,6 +311,29 @@ function Admin() {
                 placeholder="Bandar Utama"
                 value={form.area}
                 onChange={(e) => setForm({ ...form, area: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="label" htmlFor="f-phone">Contact phone</label>
+              <input
+                id="f-phone"
+                className="field mt-1 font-mono"
+                placeholder="012-345 6789"
+                value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="label" htmlFor="f-contact">Contact name</label>
+              <input
+                id="f-contact"
+                className="field mt-1"
+                placeholder="Agent Sarah"
+                value={form.contactName}
+                onChange={(e) => setForm({ ...form, contactName: e.target.value })}
               />
             </div>
           </div>

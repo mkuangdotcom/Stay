@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import type { Listing } from "@/lib/types";
+import { normalizePhoneMY } from "@/lib/contact";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +32,8 @@ export async function POST(req: NextRequest) {
     availableFrom: body.availableFrom || null,
     gender: body.gender === "female" || body.gender === "male" ? body.gender : null,
     minTermMonths: Number(body.minTermMonths) > 0 ? Number(body.minTermMonths) : null,
+    phone: normalizePhoneMY(body.phone),
+    contactName: body.contactName || null,
     notes: body.notes || null,
     firstSeen: now,
     lastSeen: now,

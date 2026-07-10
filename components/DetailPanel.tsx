@@ -1,14 +1,28 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { Listing } from "@/lib/types";
-import { ROOM_TYPE_LABELS, SOURCE_LABELS } from "@/lib/types";
+import Link from "next/link";
+import type { Listing, Outreach, OutreachStatus } from "@/lib/types";
+import { OUTREACH_STATUS_LABELS, ROOM_TYPE_LABELS, SOURCE_LABELS } from "@/lib/types";
+import { DEFAULT_TEMPLATE, TEMPLATE_KEY, fillTemplate, formatPhone, waLink } from "@/lib/contact";
 import type { Commute } from "@/lib/railGraph";
 import { RouteStrip } from "./RouteStrip";
+
+const STATUSES = Object.keys(OUTREACH_STATUS_LABELS) as OutreachStatus[];
+
+function getTemplate(): string {
+  if (typeof window === "undefined") return DEFAULT_TEMPLATE;
+  return localStorage.getItem(TEMPLATE_KEY) || DEFAULT_TEMPLATE;
+}
+
+const today = () => new Date().toISOString().slice(0, 10);
 
 export function DetailPanel({
   listing: l,
   commute,
+  outreach,
+  onOutreach,
+  onUntrack,
   onClose,
   onToggleFav,
   lineColors,
@@ -16,13 +30,35 @@ export function DetailPanel({
 }: {
   listing: Listing;
   commute: Commute | null;
+  outreach: Outreach | null;
+  onOutreach: (patch: Partial<Outreach>) => void;
+  onUntrack: () => void;
   onClose: () => void;
   onToggleFav: (id: string) => void;
   lineColors: Record<string, string>;
   lineNames: Record<string, string>;
 }) {
   const [photoIdx, setPhotoIdx] = useState(0);
+  const [copied, setCopied] = useState(false);
   const photos = l.photos.filter(Boolean);
+
+  /* first outreach from the WhatsApp button — record it, keep any existing state */
+  const markContacted = () => {
+    if (!outreach) onOutreach({ status: "contacted", channel: "whatsapp", contactedAt: today() });
+  };
+
+  const copyMessage = async () => {
+    try {
+      await navigator.clipboard.writeText(fillTemplate(getTemplate(), l));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    } catch {}
+  };
+
+  const setStatus = (s: OutreachStatus) => {
+    if (outreach?.status === s) onUntrack();
+    else onOutreach({ status: s, ...(outreach ? {} : { contactedAt: today() }) });
+  };
 
   return (
     <div className="pointer-events-auto flex max-h-[calc(100%-24px)] w-[340px] max-w-[calc(100vw-24px)] flex-col overflow-hidden rounded-xl border border-edge bg-ink shadow-2xl">
@@ -101,6 +137,17 @@ export function DetailPanel({
         <PriceHistorySection key={l.id} id={l.id} />
 
         <dl className="mt-3 space-y-1.5 text-[12px]">
+          {l.contactName && <Row k="Contact" v={l.contactName} />}
+          {l.phone && (
+            <div className="flex justify-between gap-4">
+              <dt className="shrink-0 text-faint">Phone</dt>
+              <dd className="truncate text-right">
+                <a href={`tel:${l.phone}`} className="font-mono text-muted hover:text-text hover:underline">
+                  {formatPhone(l.phone)}
+                </a>
+              </dd>
+            </div>
+          )}
           {l.propertyName && <Row k="Property" v={l.propertyName} />}
           {l.area && <Row k="Area" v={l.area} />}
           {l.address && <Row k="Address" v={l.address} />}
@@ -123,16 +170,68 @@ export function DetailPanel({
           </p>
         )}
 
+        {/* outreach: status chips write to the tracker */}
+        <div className="mt-4">
+          <div className="flex items-center justify-between">
+            <span className="label">Outreach</span>
+            <Link href="/tracker" className="text-[11px] text-accent hover:underline">
+              Open tracker →
+            </Link>
+          </div>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {STATUSES.map((s) => (
+              <button
+                key={s}
+                className="chip"
+                data-on={outreach?.status === s}
+                onClick={() => setStatus(s)}
+                title={outreach?.status === s ? "Click again to untrack" : undefined}
+              >
+                {OUTREACH_STATUS_LABELS[s]}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="mt-4 flex gap-2">
-          {l.url && (
-            <a href={l.url} target="_blank" rel="noreferrer" className="btn btn-accent flex-1">
-              Open listing ↗
-            </a>
+          {l.phone ? (
+            <>
+              <a
+                href={waLink(l.phone, fillTemplate(getTemplate(), l))}
+                target="_blank"
+                rel="noreferrer"
+                className="btn btn-accent flex-1"
+                onClick={markContacted}
+              >
+                WhatsApp ↗
+              </a>
+              {l.url && (
+                <a href={l.url} target="_blank" rel="noreferrer" className="btn">
+                  Listing ↗
+                </a>
+              )}
+            </>
+          ) : (
+            <>
+              <button className="btn flex-1" onClick={copyMessage}>
+                {copied ? "Copied ✓" : "Copy message"}
+              </button>
+              {l.url && (
+                <a href={l.url} target="_blank" rel="noreferrer" className="btn btn-accent flex-1">
+                  Open listing ↗
+                </a>
+              )}
+            </>
           )}
           <a href={`/admin?edit=${l.id}`} className="btn">
             Edit
           </a>
         </div>
+        {!l.phone && (
+          <p className="mt-2 text-[11px] text-faint">
+            No phone published — paste the copied message into the site&apos;s chat.
+          </p>
+        )}
       </div>
     </div>
   );

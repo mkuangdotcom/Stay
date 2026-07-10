@@ -25,6 +25,10 @@ export interface Listing {
   gender: Gender | null;
   /** minimum tenancy in months (1 = short-term ok, null = not stated) */
   minTermMonths: number | null;
+  /** lister's contact number, normalized to +60… (null = source doesn't publish one) */
+  phone: string | null;
+  /** lister/agent display name when the source provides one */
+  contactName: string | null;
   notes: string | null;
   firstSeen: string;
   lastSeen: string;
@@ -49,6 +53,64 @@ export interface PricePoint {
   priceRm: number;
   seenAt: string;
 }
+
+/* ------------------------------ outreach ------------------------------ */
+
+export type OutreachStatus = "contacted" | "replied" | "viewing" | "contract" | "dead";
+
+export type OutreachChannel = "whatsapp" | "phone" | "sms" | "portal" | "other";
+
+/** One row per listing the user has reached out to (or queued). */
+export interface Outreach {
+  listingId: string;
+  status: OutreachStatus;
+  /** how first contact was made (portal = the source site's own chat) */
+  channel: OutreachChannel | null;
+  /** date first contacted (YYYY-MM-DD) */
+  contactedAt: string | null;
+  /** scheduled viewing/inspection (ISO datetime) */
+  viewingAt: string | null;
+  /** negotiated rent, when it differs from asking */
+  agreedRm: number | null;
+  /** free text: "wifi+water incl, electric metered" */
+  utilities: string | null;
+  /** manual door-to-door override in minutes (null = use the computed commute) */
+  commuteMinOverride: number | null;
+  notes: string;
+  updatedAt: string;
+}
+
+/** Blank record — spread under saved state + a patch when upserting. */
+export function emptyOutreach(listingId: string): Outreach {
+  return {
+    listingId,
+    status: "contacted",
+    channel: null,
+    contactedAt: null,
+    viewingAt: null,
+    agreedRm: null,
+    utilities: null,
+    commuteMinOverride: null,
+    notes: "",
+    updatedAt: "",
+  };
+}
+
+export const OUTREACH_STATUS_LABELS: Record<OutreachStatus, string> = {
+  contacted: "Contacted",
+  replied: "Replied",
+  viewing: "Viewing booked",
+  contract: "Contract",
+  dead: "Dead",
+};
+
+export const OUTREACH_CHANNEL_LABELS: Record<OutreachChannel, string> = {
+  whatsapp: "WhatsApp",
+  phone: "Call",
+  sms: "SMS",
+  portal: "Site chat",
+  other: "Other",
+};
 
 export const ROOM_TYPE_LABELS: Record<RoomType, string> = {
   master: "Master room",

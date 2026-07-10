@@ -2,6 +2,7 @@ import * as cheerio from "cheerio";
 import type { Listing, RoomType } from "../../lib/types";
 import { fetchText } from "../lib/http";
 import { extractGender, extractMinTerm } from "../lib/extract";
+import { normalizePhoneMY } from "../../lib/contact";
 
 const BASE = "https://www.ibilik.com";
 
@@ -78,6 +79,12 @@ export const ibilik: SourceAdapter = {
       ? (area as string).replace(/-/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase())
       : null;
 
+    // contactOptions in the flight data: prefer the WHATSAPP channel, fall back to PHONE
+    const wa = flat.match(/"channel":"WHATSAPP","contactValue":"([+\d][\d ()-]{7,18})"/);
+    const tel = flat.match(/"channel":"PHONE","contactValue":"([+\d][\d ()-]{7,18})"/);
+    const phone = normalizePhoneMY(wa?.[1] ?? tel?.[1]);
+    const agent = flat.match(/"agentName":"([^"\\]{1,60})"/);
+
     const now = new Date().toISOString();
     if (!Number.isFinite(priceRm) || priceRm <= 0) return null;
 
@@ -99,6 +106,8 @@ export const ibilik: SourceAdapter = {
       availableFrom: null,
       gender: extractGender(title),
       minTermMonths: extractMinTerm(title),
+      phone,
+      contactName: agent?.[1]?.trim() || null,
       notes: null,
       firstSeen: now,
       lastSeen: now,

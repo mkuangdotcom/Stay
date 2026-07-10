@@ -137,6 +137,8 @@ export const speedhome: SourceAdapter = {
       availableFrom: prop.availability?.slice(0, 10) ?? null,
       gender,
       minTermMonths: prop.minRentalDuration ?? pref?.tenancyDuration ?? null,
+      phone: null, // SpeedHome hides contacts behind its own chat
+      contactName: null,
       notes: notes || null,
       firstSeen: now,
       lastSeen: now,

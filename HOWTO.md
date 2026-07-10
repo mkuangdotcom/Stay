@@ -63,10 +63,32 @@ Click any row or dot:
   "no changes since …" if it hasn't.
 - **☆ star** (top-right) — adds to your shortlist. Stars sync through the
   database, so they're the same on your phone and laptop.
-- **Open listing ↗** — the original ad, to contact the lister.
+- **WhatsApp ↗** — opens a chat with the lister, message pre-filled from your
+  template (iBilik and Mudah publish numbers; SpeedHome doesn't — use *Copy
+  message* and paste into their chat instead).
+- **Outreach chips** (Contacted / Replied / Viewing booked / Contract / Dead) —
+  set where things stand; the listing appears in the **Tracker**. Click the
+  active chip again to untrack.
+- **Open listing ↗** — the original ad.
 - **Tenant / Min stay rows** — gender restriction and minimum tenancy, when known.
 - Mudah listings carry a note that their pin is approximate — verify the actual
   address in the original ad.
+
+## The tracker
+
+**Tracker** (sidebar header) is the pipeline view of everyone you've messaged:
+
+- One row per contacted listing: status, channel, date contacted, viewing
+  appointment, asking vs agreed rent, utilities, commute, notes.
+- **Commute** is auto-computed (same engine as the map). Type a number to
+  override it — e.g. after you actually made the trip — clear it to go back
+  to auto.
+- **Starred, not contacted yet** lists your shortlist queue — WhatsApp them
+  from there; the row moves into the tracker as *Contacted*.
+- **Message template** (top right) edits the pre-written message. Placeholders
+  `{name} {title} {price} {area} {url}` fill in per listing.
+- Replies arrive in your actual WhatsApp — when someone answers, flip their row
+  to *Replied* so the pipeline stays honest.
 
 ## Adding your own finds (Facebook, WhatsApp, agents)
 
@@ -99,8 +121,10 @@ listing's detail card too).
 1. Turn on **Zones**, set **Door to door ≤ 45**, **Posted ≤ 3d**, your price cap,
    and **I am ♀/♂**.
 2. Sort by *Shortest commute*. Star anything promising.
-3. Switch to **★ Favs**, compare, and *Open listing ↗* to message fast —
-   good rooms in KL go in days.
+3. Open the **Tracker** — your stars are queued under *not contacted yet*.
+   WhatsApp each one; good rooms in KL go in days.
+4. As replies land, set *Replied* / *Viewing booked* and note the agreed rent
+   and utilities so you can compare offers side by side.
 
 ---
 
