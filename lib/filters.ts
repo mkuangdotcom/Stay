@@ -58,6 +58,8 @@ export function applyFilters(
       if (!o) return false;
       if (f.outreachStatuses.length && !f.outreachStatuses.includes(o.status)) return false;
     }
+    // listings staged Dead only appear when the Dead stage chip is selected
+    if (o?.status === "dead" && !f.outreachStatuses.includes("dead")) return false;
     // tracked listings stay visible even after the source ad disappears
     if (f.activeOnly && !l.isActive && !trackerOn) return false;
     if (seenAfter !== null && l.firstSeen < seenAfter) return false;
