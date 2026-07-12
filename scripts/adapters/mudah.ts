@@ -3,12 +3,16 @@
  * loaded through headless Chromium (Playwright, dynamically imported).
  *
  * Everything we need lives in the list page's __NEXT_DATA__ (40 ads/page), so
- * fetchDetail makes NO network request — it reads the cached list entry. The
- * trade-off: mudah publishes no coordinates, so pins are the listing's subarea
- * centroid (geocoded once per area via Nominatim, cached for the run) plus a
- * small deterministic jitter; listings are flagged approximate in notes.
+ * fetchDetail normally makes NO network request — it reads the cached list
+ * entry. The one exception: ads whose phone is absent from both the list JSON
+ * and the body text get a single detail-page fetch (capped per run), because
+ * detail pages DO publish the structured phone that the site's UI hides
+ * behind a click-to-reveal. The trade-off: mudah publishes no coordinates, so
+ * pins are the listing's subarea centroid (geocoded once per area via
+ * Nominatim, cached for the run) plus a small deterministic jitter; listings
+ * are flagged approximate in notes.
  */
-import type { Gender, Listing, RoomType } from "../../lib/types";
+import type { Gender, RoomType } from "../../lib/types";
 import type { SourceAdapter } from "./ibilik";
 import { REQUEST_DELAY_MS, USER_AGENT, MUDAH_MAX_KM_FROM_CENTER } from "../config";
 import { haversineMeters } from "../../lib/geo";
@@ -101,6 +105,40 @@ function jitter(sourceId: string): { dLat: number; dLng: number } {
   return { dLat: (a - 0.5) * 2 * JITTER_DEG, dLng: (b - 0.5) * 2 * JITTER_DEG };
 }
 
+/* ------------------------- detail-page phone --------------------------- */
+
+/** Bounds extra requests per run; the rest catch up on later runs. */
+const MAX_DETAIL_FETCHES = 25;
+let detailFetches = 0;
+
+/**
+ * Detail pages embed the ad's phone at
+ * __NEXT_DATA__ → props.initialState.adDetails.byID[<id>].attributes.phone
+ * (verified against list-page phones). Returns null past the cap or on miss.
+ */
+async function phoneFromDetailPage(url: string): Promise<string | null> {
+  if (detailFetches >= MAX_DETAIL_FETCHES) return null;
+  detailFetches++;
+  const p = await getPage();
+  await politePause();
+  try {
+    const resp = await p.goto(url, { waitUntil: "domcontentloaded", timeout: 45000 });
+    if (!resp || resp.status() !== 200) return null;
+    await p.waitForTimeout(1200);
+    const attrs = await p.evaluate(() => {
+      const raw = document.getElementById("__NEXT_DATA__")?.textContent;
+      if (!raw) return null;
+      const byID = JSON.parse(raw)?.props?.initialState?.adDetails?.byID ?? {};
+      const first = Object.values(byID)[0] as { attributes?: Record<string, unknown> } | undefined;
+      return first?.attributes ?? null;
+    });
+    if (!attrs) return null;
+    return normalizePhoneMY(attrs.phone as string) ?? phoneFromText(attrs.body as string);
+  } catch {
+    return null;
+  }
+}
+
 /* ------------------------------ adapter ------------------------------- */
 
 const adCache = new Map<string, MudahAd>();
@@ -150,8 +188,8 @@ export const mudah: SourceAdapter = {
     return out;
   },
 
-  // No network: parses the ad captured from the list page.
-  async fetchDetail(url, sourceId) {
+  // Parses the ad captured from the list page; only phone-less ads cost a request.
+  async fetchDetail(url, sourceId, prev) {
     const ad = adCache.get(sourceId);
     if (!ad) return null;
 
@@ -174,6 +212,13 @@ export const mudah: SourceAdapter = {
       if (photos.length >= 6) break;
     }
 
+    // list JSON → body text → previously stored → one detail-page fetch
+    const phone =
+      (ad.phoneHidden ? null : normalizePhoneMY(ad.phone)) ??
+      phoneFromText(ad.body) ??
+      prev?.phone ??
+      (await phoneFromDetailPage(url));
+
     const now = new Date().toISOString();
     return {
       id: `mudah_${sourceId}`,
@@ -193,9 +238,8 @@ export const mudah: SourceAdapter = {
       availableFrom: null,
       gender: genderById.get(sourceId) ?? extractGender(ad.subject),
       minTermMonths: extractMinTerm(ad.subject),
-      // apartments-condos ads omit the structured phone; most write it in the body
-      phone: (ad.phoneHidden ? null : normalizePhoneMY(ad.phone)) ?? phoneFromText(ad.body),
-      contactName: ad.name?.trim() || null,
+      phone,
+      contactName: ad.name?.trim() || prev?.contactName || null,
       notes: `Pin is approximate (${areaName} area — mudah publishes no exact coordinates).`,
       firstSeen: now,
       lastSeen: now,

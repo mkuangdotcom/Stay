@@ -10,8 +10,10 @@ export interface SourceAdapter {
   name: Listing["source"];
   /** Returns detail-page URLs for an area index page (1-based). */
   listPage(area: string, page: number): Promise<{ url: string; sourceId: string }[]>;
-  /** Fetches and parses one listing's detail page. Returns null if unparseable. */
-  fetchDetail(url: string, sourceId: string): Promise<Listing | null>;
+  /** Fetches and parses one listing's detail page. Returns null if unparseable.
+   *  `prev` is the stored row from earlier runs, for fields the source only
+   *  publishes intermittently (e.g. mudah phones). */
+  fetchDetail(url: string, sourceId: string, prev?: Listing): Promise<Listing | null>;
   /** True when fetchDetail costs no network request — skip the freshness shortcut. */
   alwaysRefreshDetails?: boolean;
   /** Release resources (e.g. a headless browser) after the run. */

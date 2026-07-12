@@ -37,6 +37,12 @@ export function waLink(phone: string, text: string): string {
 
 export const TEMPLATE_KEY = "stay.msg-template";
 
+/** The user's saved outreach template (browser), or the default. */
+export function getTemplate(): string {
+  if (typeof window === "undefined") return DEFAULT_TEMPLATE;
+  return localStorage.getItem(TEMPLATE_KEY) || DEFAULT_TEMPLATE;
+}
+
 export const DEFAULT_TEMPLATE = `Hi{name}, I saw your listing "{title}" ({price}/mo{area}) and I'm interested. Is it still available? I'd like to arrange a viewing.
 
 {url}`;

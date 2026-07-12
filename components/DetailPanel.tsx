@@ -4,16 +4,11 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { Listing, Outreach, OutreachStatus } from "@/lib/types";
 import { OUTREACH_STATUS_LABELS, ROOM_TYPE_LABELS, SOURCE_LABELS } from "@/lib/types";
-import { DEFAULT_TEMPLATE, TEMPLATE_KEY, fillTemplate, formatPhone, waLink } from "@/lib/contact";
+import { fillTemplate, formatPhone, getTemplate, waLink } from "@/lib/contact";
 import type { Commute } from "@/lib/railGraph";
 import { RouteStrip } from "./RouteStrip";
 
 const STATUSES = Object.keys(OUTREACH_STATUS_LABELS) as OutreachStatus[];
-
-function getTemplate(): string {
-  if (typeof window === "undefined") return DEFAULT_TEMPLATE;
-  return localStorage.getItem(TEMPLATE_KEY) || DEFAULT_TEMPLATE;
-}
 
 const today = () => new Date().toISOString().slice(0, 10);
 

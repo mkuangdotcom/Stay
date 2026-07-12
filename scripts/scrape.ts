@@ -89,7 +89,7 @@ async function main() {
         continue;
       }
       try {
-        const listing = await adapter.fetchDetail(url, sourceId);
+        const listing = await adapter.fetchDetail(url, sourceId, prev);
         if (listing) {
           rows.push(listing);
           fetched++;

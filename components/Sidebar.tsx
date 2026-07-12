@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { Listing, Outreach, OutreachStatus, RoomType, Source } from "@/lib/types";
 import { OUTREACH_STATUS_LABELS, ROOM_TYPE_LABELS, SOURCE_LABELS } from "@/lib/types";
 import type { FilterState } from "@/lib/filters";
+import { fillTemplate, getTemplate, waLink } from "@/lib/contact";
 import type { Commute } from "@/lib/railGraph";
 import { StatsPanel } from "./StatsPanel";
 import { RouteStrip } from "./RouteStrip";
@@ -450,6 +451,30 @@ function ListingRow({
             <span className="rounded bg-panel-2 px-1.5 py-px text-[9.5px] uppercase tracking-wide">
               gone
             </span>
+          )}
+          {/* one-tap WhatsApp with the templated message; first tap marks contacted */}
+          {l.phone && (
+            <a
+              href={waLink(l.phone, fillTemplate(getTemplate(), l))}
+              target="_blank"
+              rel="noreferrer"
+              title={`WhatsApp ${l.contactName ?? l.phone}`}
+              aria-label="WhatsApp the lister"
+              className="text-[#3ecf8e]/70 hover:text-[#3ecf8e]"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!outreach)
+                  onOutreach({
+                    status: "contacted",
+                    channel: "whatsapp",
+                    contactedAt: new Date().toISOString().slice(0, 10),
+                  });
+              }}
+            >
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden>
+                <path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 1.8a8.2 8.2 0 1 1-4.2 15.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 0 1 12 3.8Zm-3.1 4c-.2 0-.5 0-.7.3-.2.3-.9.9-.9 2.1s.9 2.4 1 2.6c.1.2 1.8 2.8 4.4 3.8 2.1.9 2.6.7 3 .7.5 0 1.5-.6 1.7-1.2.2-.6.2-1.1.2-1.2l-.5-.3-1.7-.8c-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.4-3c-.1-.2 0-.4.1-.5l.6-.7c.2-.2.2-.4.1-.6l-.8-1.9c-.2-.4-.4-.5-.6-.5h-.6Z" />
+              </svg>
+            </a>
           )}
           {/* quick add-to-tracker / stage change without opening the listing */}
           <select
