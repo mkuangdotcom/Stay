@@ -20,6 +20,8 @@ export interface Db {
   deactivateStale(source: string, cutoffIso: string): Promise<number>;
   getWalkCache(): Promise<WalkCache>;
   setWalkEntries(listingId: string, entries: WalkEntry[]): Promise<void>;
+  /** Drop a listing's cached walk times (after its coordinates change); the nightly scrape re-routes it. */
+  clearWalkEntries(listingId: string): Promise<void>;
   addPricePoints(points: PricePoint[]): Promise<void>;
   listPriceHistory(): Promise<PricePoint[]>;
   listOutreach(): Promise<Outreach[]>;
@@ -118,6 +120,12 @@ const fileDb: Db = {
   async setWalkEntries(listingId, entries) {
     const cache = readJson<WalkCache>("walk-cache.json", {});
     cache[listingId] = entries;
+    writeJson("walk-cache.json", cache);
+  },
+
+  async clearWalkEntries(listingId) {
+    const cache = readJson<WalkCache>("walk-cache.json", {});
+    delete cache[listingId];
     writeJson("walk-cache.json", cache);
   },
 
@@ -341,6 +349,11 @@ function makeSupabaseDb(client: SupabaseClient): Db {
         })),
         { onConflict: "listing_id,station_id" }
       );
+      if (error) throw error;
+    },
+
+    async clearWalkEntries(listingId) {
+      const { error } = await client.from("walk_cache").delete().eq("listing_id", listingId);
       if (error) throw error;
     },
 

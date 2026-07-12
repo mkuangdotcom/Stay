@@ -166,8 +166,8 @@ export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGra
   }, [listings, graph, routing, walkCache]);
 
   const filtered = useMemo(
-    () => applyFilters(listings, commutes, filters),
-    [listings, commutes, filters]
+    () => applyFilters(listings, commutes, outreach, filters),
+    [listings, commutes, outreach, filters]
   );
 
   const sorted = useMemo(() => {
@@ -264,6 +264,8 @@ export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGra
           officeLabel={officeLabel}
           onMoveOffice={moveOffice}
           onToggleFav={toggleFav}
+          onOutreach={saveOutreach}
+          onUntrack={untrack}
           onResetOffice={() => moveOffice(DEFAULT_OFFICE)}
           lineColors={lineColors}
           lineNames={lineNames}

@@ -69,6 +69,12 @@ Click any row or dot:
 - **Outreach chips** (Contacted / Replied / Viewing booked / Contract / Dead) —
   set where things stand; the listing appears in the **Tracker**. Click the
   active chip again to untrack.
+- Each row in the sidebar list also has a small **+ track** dropdown — add a
+  listing to the tracker or change its stage without opening it. Pick *untrack*
+  to remove it.
+- **Tracker filter row** (under the source chips) — *Any stage* shows only
+  tracked listings; the stage chips narrow to those stages. Tracked listings
+  stay visible even after the original ad disappears.
 - **Open listing ↗** — the original ad.
 - **Tenant / Min stay rows** — gender restriction and minimum tenancy, when known.
 - Mudah listings carry a note that their pin is approximate — verify the actual
@@ -80,6 +86,9 @@ Click any row or dot:
 
 - One row per contacted listing: status, channel, date contacted, viewing
   appointment, asking vs agreed rent, utilities, commute, notes.
+- **Address** — paste the real address the owner gives you, then **📍 locate on
+  map** and pick a match: the map pin moves there and the commute recomputes
+  from the new spot (handy for Mudah's approximate pins).
 - **Commute** is auto-computed (same engine as the map). Type a number to
   override it — e.g. after you actually made the trip — clear it to go back
   to auto.

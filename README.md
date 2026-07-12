@@ -20,6 +20,9 @@ address to change it). Usage guide for humans: [HOWTO.md](HOWTO.md).
 - **Outreach**: one-tap WhatsApp with a templated message (`lib/contact.ts`), and a
   `/tracker` pipeline page — status/channel/viewing/agreed-rent/utilities per
   contacted listing, with the auto-computed commute (manually overridable).
+  Track/re-stage from the sidebar list, filter the map by pipeline stage, and
+  edit a listing's address in the tracker — geocoding it moves the map pin and
+  resets the walk cache so the commute recomputes.
 - **Stats**: min/median/max, price histogram, median by nearest station — always for
   the current filter.
 - **Sources**: iBilik, mudah.my (rooms + apartments; area-centroid pins) and

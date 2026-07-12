@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import type { Listing, Outreach, RoomType, Source } from "@/lib/types";
+import type { Listing, Outreach, OutreachStatus, RoomType, Source } from "@/lib/types";
 import { OUTREACH_STATUS_LABELS, ROOM_TYPE_LABELS, SOURCE_LABELS } from "@/lib/types";
 import type { FilterState } from "@/lib/filters";
 import type { Commute } from "@/lib/railGraph";
@@ -14,6 +14,7 @@ export type SortMode = "commute" | "price" | "newest";
 
 const ROOM_TYPES: RoomType[] = ["master", "medium", "small", "studio", "unit"];
 const SOURCES: Source[] = ["ibilik", "mudah", "speedhome", "facebook", "manual"];
+const OUTREACH_STATUSES = Object.keys(OUTREACH_STATUS_LABELS) as OutreachStatus[];
 
 interface Props {
   filters: FilterState;
@@ -32,6 +33,8 @@ interface Props {
   officeLabel: string | null;
   onMoveOffice: (pos: { lat: number; lng: number }, label?: string) => void;
   onToggleFav: (id: string) => void;
+  onOutreach: (id: string, patch: Partial<Outreach>) => void;
+  onUntrack: (id: string) => void;
   onResetOffice: () => void;
   lineColors: Record<string, string>;
   lineNames: Record<string, string>;
@@ -257,6 +260,30 @@ export function Sidebar(p: Props) {
             Show gone
           </button>
         </div>
+
+        <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+          <span className="label">Tracker</span>
+          <button
+            className="chip"
+            data-on={f.trackedOnly && f.outreachStatuses.length === 0}
+            onClick={() => set({ trackedOnly: !f.trackedOnly, outreachStatuses: [] })}
+            title="Only listings in the tracker, any stage"
+          >
+            Any stage
+          </button>
+          {OUTREACH_STATUSES.map((s) => (
+            <button
+              key={s}
+              className="chip"
+              data-on={f.outreachStatuses.includes(s)}
+              onClick={() =>
+                set({ outreachStatuses: toggle(f.outreachStatuses, s), trackedOnly: false })
+              }
+            >
+              {OUTREACH_STATUS_LABELS[s]}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* stats */}
@@ -310,6 +337,8 @@ export function Sidebar(p: Props) {
             selected={l.id === p.selectedId}
             onClick={() => p.onSelect(l.id)}
             onToggleFav={() => p.onToggleFav(l.id)}
+            onOutreach={(patch) => p.onOutreach(l.id, patch)}
+            onUntrack={() => p.onUntrack(l.id)}
             lineColors={p.lineColors}
             lineNames={p.lineNames}
           />
@@ -339,6 +368,8 @@ function ListingRow({
   selected,
   onClick,
   onToggleFav,
+  onOutreach,
+  onUntrack,
   lineColors,
   lineNames,
 }: {
@@ -348,13 +379,25 @@ function ListingRow({
   selected: boolean;
   onClick: () => void;
   onToggleFav: () => void;
+  onOutreach: (patch: Partial<Outreach>) => void;
+  onUntrack: () => void;
   lineColors: Record<string, string>;
   lineNames: Record<string, string>;
 }) {
+  /* a <select> can't live inside a <button>, so the row is a div with button semantics */
   return (
-    <button
+    <div
+      role="button"
+      tabIndex={0}
       onClick={onClick}
-      className={`block w-full border-b border-edge/60 px-4 py-2.5 text-left transition-colors hover:bg-panel ${
+      onKeyDown={(e) => {
+        if (e.target !== e.currentTarget) return;
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick();
+        }
+      }}
+      className={`block w-full cursor-pointer border-b border-edge/60 px-4 py-2.5 text-left transition-colors hover:bg-panel ${
         selected ? "bg-panel" : ""
       } ${l.isActive ? "" : "opacity-50"}`}
       aria-pressed={selected}
@@ -397,28 +440,55 @@ function ListingRow({
         {l.minTermMonths !== null && l.minTermMonths > 1 && (
           <span className="shrink-0">· {l.minTermMonths}mo min</span>
         )}
-        {outreach && (
-          <span className={`shrink-0 ${STATUS_COLORS[outreach.status]}`}>
-            · {OUTREACH_STATUS_LABELS[outreach.status].toLowerCase()}
-          </span>
-        )}
-        {l.isActive && Date.now() - new Date(l.firstSeen).getTime() < 864e5 && (
-          <span className="ml-auto shrink-0 rounded bg-[#22a06b]/15 px-1.5 py-px text-[9.5px] font-semibold uppercase tracking-wide text-[#3ecf8e]">
-            new
-          </span>
-        )}
-        {!l.isActive && (
-          <span className="ml-auto shrink-0 rounded bg-panel-2 px-1.5 py-px text-[9.5px] uppercase tracking-wide">
-            gone
-          </span>
-        )}
+        <span className="ml-auto flex shrink-0 items-center gap-1.5">
+          {l.isActive && Date.now() - new Date(l.firstSeen).getTime() < 864e5 && (
+            <span className="rounded bg-[#22a06b]/15 px-1.5 py-px text-[9.5px] font-semibold uppercase tracking-wide text-[#3ecf8e]">
+              new
+            </span>
+          )}
+          {!l.isActive && (
+            <span className="rounded bg-panel-2 px-1.5 py-px text-[9.5px] uppercase tracking-wide">
+              gone
+            </span>
+          )}
+          {/* quick add-to-tracker / stage change without opening the listing */}
+          <select
+            className={`max-w-[110px] cursor-pointer rounded border bg-transparent py-px pl-1 text-[10.5px] outline-none ${
+              outreach
+                ? `border-edge ${STATUS_COLORS[outreach.status]}`
+                : "border-transparent text-faint hover:border-edge hover:text-muted"
+            }`}
+            value={outreach?.status ?? ""}
+            aria-label="Tracker stage"
+            title={outreach ? "Change tracker stage" : "Add to tracker"}
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+            onChange={(e) => {
+              e.stopPropagation();
+              const v = e.target.value;
+              if (v === "") onUntrack();
+              else
+                onOutreach({
+                  status: v as OutreachStatus,
+                  ...(outreach ? {} : { contactedAt: new Date().toISOString().slice(0, 10) }),
+                });
+            }}
+          >
+            <option value="">{outreach ? "untrack" : "+ track"}</option>
+            {OUTREACH_STATUSES.map((s) => (
+              <option key={s} value={s}>
+                {OUTREACH_STATUS_LABELS[s]}
+              </option>
+            ))}
+          </select>
+        </span>
       </div>
       {commute && (
         <div className="mt-1.5">
           <RouteStrip commute={commute} lineColors={lineColors} lineNames={lineNames} />
         </div>
       )}
-    </button>
+    </div>
   );
 }
 

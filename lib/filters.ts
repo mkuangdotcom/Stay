@@ -1,4 +1,4 @@
-import type { Gender, Listing, RoomType, Source } from "./types";
+import type { Gender, Listing, Outreach, OutreachStatus, RoomType, Source } from "./types";
 import type { Commute } from "./railGraph";
 
 export interface FilterState {
@@ -18,6 +18,10 @@ export interface FilterState {
   maxTermMonths: number | null;
   /** only starred listings */
   favOnly: boolean;
+  /** only listings in the tracker, at any stage */
+  trackedOnly: boolean;
+  /** only listings at these tracker stages (empty = don't filter by stage) */
+  outreachStatuses: OutreachStatus[];
 }
 
 export const DEFAULT_FILTERS: FilterState = {
@@ -33,11 +37,14 @@ export const DEFAULT_FILTERS: FilterState = {
   tenant: null,
   maxTermMonths: null,
   favOnly: false,
+  trackedOnly: false,
+  outreachStatuses: [],
 };
 
 export function applyFilters(
   listings: Listing[],
   commutes: Map<string, Commute | null>,
+  outreach: Record<string, Outreach>,
   f: FilterState
 ): Listing[] {
   const kw = f.keyword.trim().toLowerCase();
@@ -45,7 +52,14 @@ export function applyFilters(
     f.maxAgeDays !== null ? new Date(Date.now() - f.maxAgeDays * 864e5).toISOString() : null;
   return listings.filter((l) => {
     if (f.favOnly && !l.isFav) return false;
-    if (f.activeOnly && !l.isActive) return false;
+    const o = outreach[l.id];
+    const trackerOn = f.trackedOnly || f.outreachStatuses.length > 0;
+    if (trackerOn) {
+      if (!o) return false;
+      if (f.outreachStatuses.length && !f.outreachStatuses.includes(o.status)) return false;
+    }
+    // tracked listings stay visible even after the source ad disappears
+    if (f.activeOnly && !l.isActive && !trackerOn) return false;
     if (seenAfter !== null && l.firstSeen < seenAfter) return false;
     if (f.priceMin !== null && l.priceRm < f.priceMin) return false;
     if (f.priceMax !== null && l.priceRm > f.priceMax) return false;

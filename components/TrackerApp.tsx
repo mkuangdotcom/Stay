@@ -81,6 +81,24 @@ export function TrackerApp({ graphData }: { graphData: RailGraphData }) {
     }).catch(() => {});
   };
 
+  /** Update listing fields (e.g. the real address from the owner) — the map reads the same row. */
+  const patchListing = (id: string, patch: Partial<Listing>) => {
+    setListings((ls) => ls.map((l) => (l.id === id ? { ...l, ...patch } : l)));
+    // moved pin → cached walk times no longer apply; recompute from the new coords
+    if (patch.lat !== undefined || patch.lng !== undefined) {
+      setWalkCache((c) => {
+        const rest = { ...c };
+        delete rest[id];
+        return rest;
+      });
+    }
+    fetch(`/api/listings/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(patch),
+    }).catch(() => {});
+  };
+
   const untrack = (listingId: string) => {
     setOutreach((m) => {
       const rest = { ...m };
@@ -192,10 +210,11 @@ export function TrackerApp({ graphData }: { graphData: RailGraphData }) {
           )}
           {tracked.length > 0 && (
             <div className="overflow-x-auto rounded-xl border border-edge">
-              <table className="w-full min-w-[1080px] text-[12px]">
+              <table className="w-full min-w-[1460px] text-[12px]">
                 <thead className="bg-panel">
                   <tr className="label text-left">
                     <th className="px-3 py-2.5 font-semibold">Listing</th>
+                    <th className="px-2 py-2.5 font-semibold">Address</th>
                     <th className="px-2 py-2.5 font-semibold">Status</th>
                     <th className="px-2 py-2.5 font-semibold">Channel</th>
                     <th className="px-2 py-2.5 font-semibold">Contacted</th>
@@ -218,6 +237,7 @@ export function TrackerApp({ graphData }: { graphData: RailGraphData }) {
                       }
                       template={template}
                       onSave={(patch) => save(o.listingId, patch)}
+                      onPatchListing={(patch) => patchListing(o.listingId, patch)}
                       onUntrack={() => untrack(o.listingId)}
                     />
                   ))}
@@ -261,6 +281,7 @@ function TrackedRow({
   autoMin,
   template,
   onSave,
+  onPatchListing,
   onUntrack,
 }: {
   o: Outreach;
@@ -268,12 +289,13 @@ function TrackedRow({
   autoMin: number | null;
   template: string;
   onSave: (patch: Partial<Outreach>) => void;
+  onPatchListing: (patch: Partial<Listing>) => void;
   onUntrack: () => void;
 }) {
   if (!l) {
     return (
       <tr className="border-t border-edge/60">
-        <td className="px-3 py-2 text-faint" colSpan={9}>
+        <td className="px-3 py-2 text-faint" colSpan={10}>
           Listing removed from the database
         </td>
         <td className="px-3 py-2 text-right">
@@ -300,6 +322,9 @@ function TrackedRow({
           {l.phone && ` · ${formatPhone(l.phone)}`}
           {!l.isActive && <span className="text-bad"> · gone</span>}
         </span>
+      </td>
+      <td className="px-2 py-2">
+        <AddressCell listing={l} onPatch={onPatchListing} />
       </td>
       <td className="px-2 py-2">
         <select
@@ -412,6 +437,91 @@ function TrackedRow({
         </button>
       </td>
     </tr>
+  );
+}
+
+/**
+ * Address the owner gave you: text saves onto the listing; “locate” geocodes it
+ * so the map pin moves to the real spot (walk cache resets, commute recomputes).
+ */
+function AddressCell({
+  listing: l,
+  onPatch,
+}: {
+  listing: Listing;
+  onPatch: (patch: Partial<Listing>) => void;
+}) {
+  const [value, setValue] = useState(l.address ?? "");
+  const [results, setResults] = useState<{ name: string; lat: number; lng: number }[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [located, setLocated] = useState(false);
+
+  const saveText = () => {
+    const v = value.trim();
+    if (v !== (l.address ?? "")) onPatch({ address: v || null });
+  };
+
+  const locate = async () => {
+    const q = value.trim();
+    if (!q) return;
+    setBusy(true);
+    setResults(null);
+    try {
+      const d = await fetch(`/api/geocode?q=${encodeURIComponent(q)}`).then((r) => r.json());
+      setResults(d.results ?? []);
+    } catch {
+      setResults([]);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const pick = (r: { name: string; lat: number; lng: number }) => {
+    onPatch({ address: value.trim(), lat: r.lat, lng: r.lng });
+    setResults(null);
+    setLocated(true);
+    setTimeout(() => setLocated(false), 2500);
+  };
+
+  return (
+    <div className="w-[210px]">
+      <textarea
+        rows={2}
+        className="field w-full py-1 text-[11.5px]"
+        placeholder="address from the owner…"
+        value={value}
+        aria-label="Address"
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={saveText}
+      />
+      <div className="mt-0.5 flex items-center gap-2">
+        <button
+          className="text-[10.5px] text-accent hover:underline disabled:opacity-40"
+          onClick={locate}
+          disabled={busy || !value.trim()}
+          title="Geocode this address and move the map pin"
+        >
+          {busy ? "locating…" : "📍 locate on map"}
+        </button>
+        {located && <span className="text-[10.5px] text-good">pin moved ✓</span>}
+      </div>
+      {results !== null && !located && (
+        <div className="mt-1 max-h-[110px] overflow-y-auto rounded-md border border-edge bg-panel">
+          {results.length === 0 && (
+            <p className="px-2 py-1.5 text-[10.5px] text-faint">No match — try adding the area or city.</p>
+          )}
+          {results.map((r, i) => (
+            <button
+              key={i}
+              className="block w-full px-2 py-1.5 text-left text-[10.5px] leading-snug hover:bg-white/5"
+              onClick={() => pick(r)}
+            >
+              {r.name}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
