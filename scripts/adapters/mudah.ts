@@ -13,7 +13,7 @@ import type { SourceAdapter } from "./ibilik";
 import { REQUEST_DELAY_MS, USER_AGENT, MUDAH_MAX_KM_FROM_CENTER } from "../config";
 import { haversineMeters } from "../../lib/geo";
 import { extractGender, extractMinTerm } from "../lib/extract";
-import { normalizePhoneMY } from "../../lib/contact";
+import { normalizePhoneMY, phoneFromText } from "../../lib/contact";
 
 const BASE = "https://www.mudah.my";
 const GEO_CENTER = { lat: 3.14, lng: 101.69 }; // KL city — bounds the conurbation
@@ -35,6 +35,8 @@ interface MudahAd {
   phone?: string;
   phoneHidden?: boolean;
   name?: string;
+  /** description text — present on apartments-condos ads, which lack `phone` */
+  body?: string;
 }
 
 /* ------------------------- playwright session ------------------------- */
@@ -191,7 +193,8 @@ export const mudah: SourceAdapter = {
       availableFrom: null,
       gender: genderById.get(sourceId) ?? extractGender(ad.subject),
       minTermMonths: extractMinTerm(ad.subject),
-      phone: ad.phoneHidden ? null : normalizePhoneMY(ad.phone),
+      // apartments-condos ads omit the structured phone; most write it in the body
+      phone: (ad.phoneHidden ? null : normalizePhoneMY(ad.phone)) ?? phoneFromText(ad.body),
       contactName: ad.name?.trim() || null,
       notes: `Pin is approximate (${areaName} area — mudah publishes no exact coordinates).`,
       firstSeen: now,

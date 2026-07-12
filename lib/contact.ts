@@ -14,6 +14,17 @@ export function normalizePhoneMY(raw: string | null | undefined): string | null 
   return `+${d}`;
 }
 
+/**
+ * First Malaysian mobile number found in free text (ad descriptions), normalized.
+ * Mudah's apartments category omits the structured phone field but ~80% of those
+ * ads write the number in the description.
+ */
+export function phoneFromText(text: string | null | undefined): string | null {
+  if (!text) return null;
+  const m = text.match(/(?<!\d)(?:\+?6\s?)?01\d(?:[\s-]?\d){7,8}(?!\d)/);
+  return m ? normalizePhoneMY(m[0]) : null;
+}
+
 /** Display form: +60 12-345 6789 stays readable without being clever. */
 export function formatPhone(phone: string): string {
   const m = phone.match(/^\+60(1\d{1,2})(\d{3,4})(\d{4})$/);

@@ -26,7 +26,10 @@ Personal KL rental-finder map. See README.md for architecture and commands.
 - **mudah.my specifics**: 403s plain HTTP → list pages load via headless Chromium
   (Playwright); all fields come from list-page `__NEXT_DATA__` so no detail-page
   requests are made; no coordinates published → pins are Nominatim area-centroids
-  with deterministic jitter, flagged in `notes`.
+  with deterministic jitter, flagged in `notes`. Rooms ads carry `phone` directly;
+  apartments-condos ads omit it but ~80% write the number in `body` —
+  `phoneFromText()` regex-extracts it (their detail pages do publish a structured
+  phone if that residual ever matters).
 - **iBilik specifics**: area pages are server-rendered (15 cards/page), price lives in
   RSC flight data (`"price":N,"priceUnit":"month"`), coordinates in a Google Maps
   `query=lat,lng` link, photos on `assets-prod` or `legacy-assets` hosts. Datacenter
