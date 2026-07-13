@@ -414,7 +414,7 @@ function TrackedRow({
     <>
       <tr className={`border-t border-edge/60 align-top ${dead ? "opacity-50" : ""}`}>
         {cols.photo && (
-          <td className="w-[72px] px-2 py-2">
+          <td className="w-[72px] min-w-[72px] px-2 py-2">
             {photos[0] ? (
               <button onClick={() => setExpanded((v) => !v)} title="Show all photos">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -423,7 +423,7 @@ function TrackedRow({
                   alt=""
                   referrerPolicy="no-referrer"
                   loading="lazy"
-                  className="h-11 w-16 rounded-md object-cover"
+                  className="h-11 w-16 min-w-16 max-w-none rounded-md object-cover"
                 />
               </button>
             ) : (
@@ -539,7 +539,7 @@ function TrackedRow({
                       alt=""
                       referrerPolicy="no-referrer"
                       loading="lazy"
-                      className="h-24 rounded-md object-cover"
+                      className="h-24 max-w-none rounded-md object-cover"
                     />
                   </a>
                 ))}
