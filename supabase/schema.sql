@@ -65,9 +65,12 @@ create table if not exists outreach (
   agreed_rm            numeric,        -- negotiated rent when it differs from asking
   utilities            text,           -- "wifi+water incl, electric metered"
   commute_min_override integer,        -- manual door-to-door override
+  dead_reason          text,           -- why the lead died (status = dead)
   notes                text not null default '',
   updated_at           timestamptz not null
 );
+
+alter table outreach add column if not exists dead_reason text;
 
 alter table listings enable row level security;
 alter table price_history enable row level security;

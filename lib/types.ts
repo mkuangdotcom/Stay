@@ -76,6 +76,8 @@ export interface Outreach {
   utilities: string | null;
   /** manual door-to-door override in minutes (null = use the computed commute) */
   commuteMinOverride: number | null;
+  /** why the lead died: "taken", "agent ghosted"… (only meaningful when status = dead) */
+  deadReason: string | null;
   notes: string;
   updatedAt: string;
 }
@@ -91,6 +93,7 @@ export function emptyOutreach(listingId: string): Outreach {
     agreedRm: null,
     utilities: null,
     commuteMinOverride: null,
+    deadReason: null,
     notes: "",
     updatedAt: "",
   };
@@ -103,6 +106,15 @@ export const OUTREACH_STATUS_LABELS: Record<OutreachStatus, string> = {
   contract: "Contract",
   dead: "Dead",
 };
+
+/** quick-pick reasons offered when a lead is marked dead */
+export const DEAD_REASON_PRESETS = [
+  "Taken",
+  "Too expensive",
+  "Ghosted",
+  "Bad location",
+  "Bad condition",
+] as const;
 
 export const OUTREACH_CHANNEL_LABELS: Record<OutreachChannel, string> = {
   whatsapp: "WhatsApp",

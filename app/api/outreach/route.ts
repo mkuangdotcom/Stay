@@ -33,6 +33,8 @@ export async function PUT(req: NextRequest) {
       Number.isFinite(Number(body.commuteMinOverride)) && Number(body.commuteMinOverride) > 0
         ? Math.round(Number(body.commuteMinOverride))
         : null,
+    deadReason:
+      typeof body.deadReason === "string" && body.deadReason.trim() ? body.deadReason.trim() : null,
     notes: typeof body.notes === "string" ? body.notes : "",
     updatedAt: new Date().toISOString(),
   };

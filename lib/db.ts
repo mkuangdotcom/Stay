@@ -388,6 +388,7 @@ function makeSupabaseDb(client: SupabaseClient): Db {
         agreedRm: (r.agreed_rm ?? null) as number | null,
         utilities: (r.utilities ?? null) as string | null,
         commuteMinOverride: (r.commute_min_override ?? null) as number | null,
+        deadReason: (r.dead_reason ?? null) as string | null,
         notes: (r.notes ?? "") as string,
         updatedAt: r.updated_at as string,
       }));
@@ -404,6 +405,7 @@ function makeSupabaseDb(client: SupabaseClient): Db {
           agreed_rm: row.agreedRm,
           utilities: row.utilities,
           commute_min_override: row.commuteMinOverride,
+          dead_reason: row.deadReason,
           notes: row.notes,
           updated_at: row.updatedAt,
         },

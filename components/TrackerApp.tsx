@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { Listing, Outreach, OutreachChannel, OutreachStatus, WalkCache } from "@/lib/types";
 import {
+  DEAD_REASON_PRESETS,
   emptyOutreach,
   OUTREACH_CHANNEL_LABELS,
   OUTREACH_STATUS_LABELS,
@@ -27,6 +28,45 @@ const STATUS_ORDER: OutreachStatus[] = ["viewing", "replied", "contacted", "cont
 
 const today = () => new Date().toISOString().slice(0, 10);
 
+/* Optional columns — Listing and Actions are always shown. A hidden column's
+   field is still editable in the row's expand panel (▸). */
+type ColKey =
+  | "photo"
+  | "address"
+  | "status"
+  | "channel"
+  | "contacted"
+  | "viewing"
+  | "rent"
+  | "utilities"
+  | "commute"
+  | "notes";
+const COLUMNS: { key: ColKey; label: string }[] = [
+  { key: "photo", label: "Photo" },
+  { key: "address", label: "Address" },
+  { key: "status", label: "Status" },
+  { key: "channel", label: "Channel" },
+  { key: "contacted", label: "Contacted" },
+  { key: "viewing", label: "Viewing" },
+  { key: "rent", label: "Rent RM" },
+  { key: "utilities", label: "Utilities" },
+  { key: "commute", label: "Commute" },
+  { key: "notes", label: "Notes" },
+];
+const DEFAULT_COLS: Record<ColKey, boolean> = {
+  photo: true,
+  address: false,
+  status: true,
+  channel: false,
+  contacted: false,
+  viewing: true,
+  rent: true,
+  utilities: false,
+  commute: true,
+  notes: true,
+};
+const COLS_KEY = "stay:trackerCols";
+
 export function TrackerApp({ graphData }: { graphData: RailGraphData }) {
   const [listings, setListings] = useState<Listing[]>([]);
   const [walkCache, setWalkCache] = useState<WalkCache>({});
@@ -36,12 +76,16 @@ export function TrackerApp({ graphData }: { graphData: RailGraphData }) {
   const [busEnabled, setBusEnabled] = useState(true);
   const [template, setTemplate] = useState(DEFAULT_TEMPLATE);
   const [showTemplate, setShowTemplate] = useState(false);
+  const [cols, setCols] = useState<Record<ColKey, boolean>>(DEFAULT_COLS);
+  const [showCols, setShowCols] = useState(false);
 
   useEffect(() => {
     setOffice(readOffice());
     try {
       if (localStorage.getItem(BUS_KEY) === "off") setBusEnabled(false);
       setTemplate(localStorage.getItem(TEMPLATE_KEY) || DEFAULT_TEMPLATE);
+      const savedCols = localStorage.getItem(COLS_KEY);
+      if (savedCols) setCols({ ...DEFAULT_COLS, ...JSON.parse(savedCols) });
     } catch {}
     Promise.all([
       fetch("/api/listings").then((r) => r.json()),
@@ -63,6 +107,16 @@ export function TrackerApp({ graphData }: { graphData: RailGraphData }) {
     try {
       localStorage.setItem(TEMPLATE_KEY, t);
     } catch {}
+  };
+
+  const toggleCol = (k: ColKey) => {
+    setCols((c) => {
+      const next = { ...c, [k]: !c[k] };
+      try {
+        localStorage.setItem(COLS_KEY, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
   };
 
   const save = (listingId: string, patch: Partial<Outreach>) => {
@@ -142,6 +196,9 @@ export function TrackerApp({ graphData }: { graphData: RailGraphData }) {
     return c;
   }, [tracked]);
 
+  /* Listing + enabled optional columns + Actions */
+  const colSpanAll = 2 + COLUMNS.filter((c) => cols[c.key]).length;
+
   return (
     <div className="h-dvh overflow-y-auto bg-ink">
       <header className="sticky top-0 z-10 flex items-center justify-between border-b border-edge bg-ink/95 px-5 py-3 backdrop-blur">
@@ -189,14 +246,46 @@ export function TrackerApp({ graphData }: { graphData: RailGraphData }) {
           </section>
         )}
 
-        {/* pipeline summary */}
-        <div className="flex flex-wrap gap-1.5">
-          {STATUS_ORDER.map((s) => (
-            <span key={s} className="chip cursor-default" data-on={counts[s] > 0}>
-              {OUTREACH_STATUS_LABELS[s]}
-              <span className="font-mono">{counts[s]}</span>
-            </span>
-          ))}
+        {/* pipeline summary + column picker */}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap gap-1.5">
+            {STATUS_ORDER.map((s) => (
+              <span key={s} className="chip cursor-default" data-on={counts[s] > 0}>
+                {OUTREACH_STATUS_LABELS[s]}
+                <span className="font-mono">{counts[s]}</span>
+              </span>
+            ))}
+          </div>
+          <div className="relative">
+            <button
+              className="btn py-1 text-[12px]"
+              onClick={() => setShowCols((v) => !v)}
+              title="Choose which columns to show — hidden fields stay editable via each row's ▸"
+            >
+              Columns ⚙
+            </button>
+            {showCols && (
+              <div className="absolute right-0 z-20 mt-1 w-[170px] rounded-md border border-edge bg-panel p-1.5 shadow-lg">
+                {COLUMNS.map((c) => (
+                  <label
+                    key={c.key}
+                    className="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-[11.5px] hover:bg-white/5"
+                  >
+                    <input
+                      type="checkbox"
+                      className="accent-current"
+                      checked={cols[c.key]}
+                      onChange={() => toggleCol(c.key)}
+                    />
+                    {c.label}
+                  </label>
+                ))}
+                <p className="border-t border-edge/60 px-1.5 pb-0.5 pt-1.5 text-[10px] leading-snug text-faint">
+                  Hidden fields stay editable in a row&rsquo;s ▸ panel.
+                </p>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* tracked listings */}
@@ -210,19 +299,20 @@ export function TrackerApp({ graphData }: { graphData: RailGraphData }) {
           )}
           {tracked.length > 0 && (
             <div className="overflow-x-auto rounded-xl border border-edge">
-              <table className="w-full min-w-[1460px] text-[12px]">
+              <table className="w-full text-[12px]">
                 <thead className="bg-panel">
                   <tr className="label text-left">
+                    {cols.photo && <th className="px-2 py-2.5 font-semibold" />}
                     <th className="px-3 py-2.5 font-semibold">Listing</th>
-                    <th className="px-2 py-2.5 font-semibold">Address</th>
-                    <th className="px-2 py-2.5 font-semibold">Status</th>
-                    <th className="px-2 py-2.5 font-semibold">Channel</th>
-                    <th className="px-2 py-2.5 font-semibold">Contacted</th>
-                    <th className="px-2 py-2.5 font-semibold">Viewing</th>
-                    <th className="px-2 py-2.5 text-right font-semibold">Rent RM</th>
-                    <th className="px-2 py-2.5 font-semibold">Utilities</th>
-                    <th className="px-2 py-2.5 font-semibold">Commute</th>
-                    <th className="px-2 py-2.5 font-semibold">Notes</th>
+                    {cols.address && <th className="px-2 py-2.5 font-semibold">Address</th>}
+                    {cols.status && <th className="px-2 py-2.5 font-semibold">Status</th>}
+                    {cols.channel && <th className="px-2 py-2.5 font-semibold">Channel</th>}
+                    {cols.contacted && <th className="px-2 py-2.5 font-semibold">Contacted</th>}
+                    {cols.viewing && <th className="px-2 py-2.5 font-semibold">Viewing</th>}
+                    {cols.rent && <th className="whitespace-nowrap px-2 py-2.5 text-right font-semibold">Rent RM</th>}
+                    {cols.utilities && <th className="px-2 py-2.5 font-semibold">Utilities</th>}
+                    {cols.commute && <th className="px-2 py-2.5 font-semibold">Commute</th>}
+                    {cols.notes && <th className="px-2 py-2.5 font-semibold">Notes</th>}
                     <th className="px-3 py-2.5 text-right font-semibold">Actions</th>
                   </tr>
                 </thead>
@@ -236,6 +326,8 @@ export function TrackerApp({ graphData }: { graphData: RailGraphData }) {
                         byId.has(o.listingId) ? autoCommute(byId.get(o.listingId)!) : null
                       }
                       template={template}
+                      cols={cols}
+                      colSpanAll={colSpanAll}
                       onSave={(patch) => save(o.listingId, patch)}
                       onPatchListing={(patch) => patchListing(o.listingId, patch)}
                       onUntrack={() => untrack(o.listingId)}
@@ -280,6 +372,8 @@ function TrackedRow({
   listing: l,
   autoMin,
   template,
+  cols,
+  colSpanAll,
   onSave,
   onPatchListing,
   onUntrack,
@@ -288,14 +382,18 @@ function TrackedRow({
   listing: Listing | null;
   autoMin: number | null;
   template: string;
+  cols: Record<ColKey, boolean>;
+  colSpanAll: number;
   onSave: (patch: Partial<Outreach>) => void;
   onPatchListing: (patch: Partial<Listing>) => void;
   onUntrack: () => void;
 }) {
+  const [expanded, setExpanded] = useState(false);
+
   if (!l) {
     return (
       <tr className="border-t border-edge/60">
-        <td className="px-3 py-2 text-faint" colSpan={10}>
+        <td className="px-3 py-2 text-faint" colSpan={colSpanAll - 1}>
           Listing removed from the database
         </td>
         <td className="px-3 py-2 text-right">
@@ -306,137 +404,370 @@ function TrackedRow({
       </tr>
     );
   }
+
+  const photos = l.photos.filter(Boolean);
+  const dead = o.status === "dead";
+  /* fields whose columns are hidden — still editable in the expand panel */
+  const hiddenFields = COLUMNS.filter((c) => c.key !== "photo" && !cols[c.key]);
+
   return (
-    <tr className={`border-t border-edge/60 align-top ${o.status === "dead" ? "opacity-50" : ""}`}>
-      <td className="max-w-[260px] px-3 py-2">
-        {l.url ? (
-          <a href={l.url} target="_blank" rel="noreferrer" className="block truncate font-medium hover:underline">
-            {l.propertyName || l.title}
-          </a>
-        ) : (
-          <span className="block truncate font-medium">{l.propertyName || l.title}</span>
+    <>
+      <tr className={`border-t border-edge/60 align-top ${dead ? "opacity-50" : ""}`}>
+        {cols.photo && (
+          <td className="w-[72px] px-2 py-2">
+            {photos[0] ? (
+              <button onClick={() => setExpanded((v) => !v)} title="Show all photos">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={photos[0]}
+                  alt=""
+                  referrerPolicy="no-referrer"
+                  loading="lazy"
+                  className="h-11 w-16 rounded-md object-cover"
+                />
+              </button>
+            ) : (
+              <span className="text-faint">—</span>
+            )}
+          </td>
         )}
-        <span className="mt-0.5 block truncate text-[11px] text-faint">
-          {ROOM_TYPE_LABELS[l.roomType]} · {l.area ?? SOURCE_LABELS[l.source]}
-          {l.contactName && ` · ${l.contactName}`}
-          {l.phone && ` · ${formatPhone(l.phone)}`}
-          {!l.isActive && <span className="text-bad"> · gone</span>}
-        </span>
-      </td>
-      <td className="px-2 py-2">
-        <AddressCell listing={l} onPatch={onPatchListing} />
-      </td>
-      <td className="px-2 py-2">
-        <select
-          className="field w-auto py-1 text-[11.5px]"
-          value={o.status}
-          aria-label="Status"
-          onChange={(e) => onSave({ status: e.target.value as OutreachStatus })}
-        >
-          {STATUSES.map((s) => (
-            <option key={s} value={s}>
-              {OUTREACH_STATUS_LABELS[s]}
-            </option>
-          ))}
-        </select>
-      </td>
-      <td className="px-2 py-2">
-        <select
-          className="field w-auto py-1 text-[11.5px]"
-          value={o.channel ?? ""}
-          aria-label="Channel"
-          onChange={(e) => onSave({ channel: (e.target.value || null) as Outreach["channel"] })}
-        >
-          <option value="">—</option>
-          {CHANNELS.map((c) => (
-            <option key={c} value={c}>
-              {OUTREACH_CHANNEL_LABELS[c]}
-            </option>
-          ))}
-        </select>
-      </td>
-      <td className="px-2 py-2">
-        <input
-          type="date"
-          className="field w-[130px] py-1 font-mono text-[11px]"
-          value={o.contactedAt?.slice(0, 10) ?? ""}
-          aria-label="Date contacted"
-          onChange={(e) => onSave({ contactedAt: e.target.value || null })}
-        />
-      </td>
-      <td className="px-2 py-2">
-        <input
-          type="datetime-local"
-          className="field w-[170px] py-1 font-mono text-[11px]"
-          value={o.viewingAt?.slice(0, 16) ?? ""}
-          aria-label="Viewing appointment"
-          onChange={(e) => onSave({ viewingAt: e.target.value || null })}
-        />
-      </td>
-      <td className="px-2 py-2 text-right">
-        <div className="font-mono">{l.priceRm.toLocaleString()}</div>
-        <input
-          type="number"
-          className="field mt-1 w-[80px] py-1 text-right font-mono text-[11px]"
-          placeholder="agreed"
-          defaultValue={o.agreedRm ?? ""}
-          aria-label="Agreed rent"
-          onBlur={(e) => onSave({ agreedRm: e.target.value ? Number(e.target.value) : null })}
-        />
-      </td>
-      <td className="px-2 py-2">
-        <input
-          className="field w-[150px] py-1 text-[11.5px]"
-          placeholder="wifi+water incl…"
-          defaultValue={o.utilities ?? ""}
-          aria-label="Utilities"
-          onBlur={(e) => onSave({ utilities: e.target.value.trim() || null })}
-        />
-      </td>
-      <td className="px-2 py-2">
-        <div className="flex items-center gap-1">
+        <td className="max-w-[260px] px-3 py-2">
+          <div className="flex items-start gap-1.5">
+            <button
+              className="mt-px shrink-0 font-mono text-[11px] text-faint hover:text-accent"
+              onClick={() => setExpanded((v) => !v)}
+              title={expanded ? "Hide details" : "Photos & all details"}
+              aria-label={expanded ? "Hide details" : "Show details"}
+            >
+              {expanded ? "▾" : "▸"}
+            </button>
+            <div className="min-w-0">
+              {l.url ? (
+                <a href={l.url} target="_blank" rel="noreferrer" className="block truncate font-medium hover:underline">
+                  {l.propertyName || l.title}
+                </a>
+              ) : (
+                <span className="block truncate font-medium">{l.propertyName || l.title}</span>
+              )}
+              <span className="mt-0.5 block truncate text-[11px] text-faint">
+                {ROOM_TYPE_LABELS[l.roomType]} · {l.area ?? SOURCE_LABELS[l.source]}
+                {l.contactName && ` · ${l.contactName}`}
+                {l.phone && ` · ${formatPhone(l.phone)}`}
+                {!l.isActive && <span className="text-bad"> · gone</span>}
+              </span>
+              {dead && !cols.status && (
+                <span className="mt-0.5 block truncate text-[11px] text-bad/80" title={o.deadReason ?? undefined}>
+                  ✕ {o.deadReason || "no reason noted"}
+                </span>
+              )}
+            </div>
+          </div>
+        </td>
+        {cols.address && (
+          <td className="px-2 py-2">
+            <AddressCell listing={l} onPatch={onPatchListing} />
+          </td>
+        )}
+        {cols.status && (
+          <td className="px-2 py-2">
+            <StatusCell o={o} onSave={onSave} />
+          </td>
+        )}
+        {cols.channel && (
+          <td className="px-2 py-2">
+            <ChannelSelect o={o} onSave={onSave} />
+          </td>
+        )}
+        {cols.contacted && (
+          <td className="px-2 py-2">
+            <ContactedInput o={o} onSave={onSave} />
+          </td>
+        )}
+        {cols.viewing && (
+          <td className="px-2 py-2">
+            <ViewingInput o={o} onSave={onSave} />
+          </td>
+        )}
+        {cols.rent && (
+          <td className="px-2 py-2 text-right">
+            <div className="font-mono">{l.priceRm.toLocaleString()}</div>
+            <AgreedInput o={o} onSave={onSave} />
+          </td>
+        )}
+        {cols.utilities && (
+          <td className="px-2 py-2">
+            <UtilitiesInput o={o} onSave={onSave} />
+          </td>
+        )}
+        {cols.commute && (
+          <td className="px-2 py-2">
+            <CommuteInput o={o} autoMin={autoMin} onSave={onSave} />
+          </td>
+        )}
+        {cols.notes && (
+          <td className="px-2 py-2">
+            <NotesInput o={o} onSave={onSave} />
+          </td>
+        )}
+        <td className="whitespace-nowrap px-3 py-2 text-right">
+          {l.phone && (
+            <a
+              href={waLink(l.phone, fillTemplate(template, l))}
+              target="_blank"
+              rel="noreferrer"
+              className="text-accent hover:underline"
+            >
+              WhatsApp ↗
+            </a>
+          )}
+          <button className="ml-3 text-muted hover:underline" onClick={onUntrack}>
+            untrack
+          </button>
+        </td>
+      </tr>
+
+      {expanded && (
+        <tr className={`border-t border-edge/30 bg-panel/40 ${dead ? "opacity-60" : ""}`}>
+          <td colSpan={colSpanAll} className="px-4 pb-4 pt-2">
+            {photos.length > 0 ? (
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {photos.map((p, i) => (
+                  <a key={i} href={p} target="_blank" rel="noreferrer" className="shrink-0" title="Open full size">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={p}
+                      alt=""
+                      referrerPolicy="no-referrer"
+                      loading="lazy"
+                      className="h-24 rounded-md object-cover"
+                    />
+                  </a>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[11px] text-faint">No photos on this listing.</p>
+            )}
+            {hiddenFields.length > 0 && (
+              <div className="mt-3 flex flex-wrap items-start gap-x-6 gap-y-3">
+                {hiddenFields.map(({ key, label }) => (
+                  <div key={key}>
+                    <span className="label mb-1 block">{label}</span>
+                    {key === "address" && <AddressCell listing={l} onPatch={onPatchListing} />}
+                    {key === "status" && <StatusCell o={o} onSave={onSave} />}
+                    {key === "channel" && <ChannelSelect o={o} onSave={onSave} />}
+                    {key === "contacted" && <ContactedInput o={o} onSave={onSave} />}
+                    {key === "viewing" && <ViewingInput o={o} onSave={onSave} />}
+                    {key === "rent" && <AgreedInput o={o} onSave={onSave} />}
+                    {key === "utilities" && <UtilitiesInput o={o} onSave={onSave} />}
+                    {key === "commute" && <CommuteInput o={o} autoMin={autoMin} onSave={onSave} />}
+                    {key === "notes" && <NotesInput o={o} onSave={onSave} wide />}
+                  </div>
+                ))}
+              </div>
+            )}
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
+/* --------------------------- field widgets --------------------------- */
+/* Each renders in the table cell when its column is shown, or in the
+   expand panel when hidden — never both, so uncontrolled inputs stay honest. */
+
+function StatusCell({ o, onSave }: { o: Outreach; onSave: (patch: Partial<Outreach>) => void }) {
+  const [asking, setAsking] = useState(false); // dead-reason prompt open
+  const [reason, setReason] = useState("");
+
+  const openPrompt = () => {
+    setReason(o.deadReason ?? "");
+    setAsking(true);
+  };
+
+  const change = (v: OutreachStatus) => {
+    if (v === "dead") {
+      openPrompt(); // capture the why before saving
+    } else {
+      setAsking(false);
+      onSave({ status: v, deadReason: null });
+    }
+  };
+
+  const commit = (r: string) => {
+    onSave({ status: "dead", deadReason: r.trim() || null });
+    setAsking(false);
+  };
+
+  return (
+    <div className="w-[150px] min-w-[130px]">
+      <select
+        className="field w-auto py-1 text-[11.5px]"
+        value={asking ? "dead" : o.status}
+        aria-label="Status"
+        onChange={(e) => change(e.target.value as OutreachStatus)}
+      >
+        {STATUSES.map((s) => (
+          <option key={s} value={s}>
+            {OUTREACH_STATUS_LABELS[s]}
+          </option>
+        ))}
+      </select>
+      {asking && (
+        <div className="mt-1.5 w-[190px] rounded-md border border-edge bg-panel p-2">
+          <p className="text-[10.5px] font-semibold text-muted">Why is it dead?</p>
+          <div className="mt-1.5 flex flex-wrap gap-1">
+            {DEAD_REASON_PRESETS.map((p) => (
+              <button key={p} className="chip" onClick={() => commit(p)}>
+                {p}
+              </button>
+            ))}
+          </div>
           <input
-            type="number"
-            className="field w-[62px] py-1 text-right font-mono text-[11px]"
-            placeholder={autoMin !== null ? String(autoMin) : "—"}
-            defaultValue={o.commuteMinOverride ?? ""}
-            aria-label="Commute minutes (blank = auto)"
-            title="Auto-computed door-to-door; type to override, clear to go back to auto"
-            onBlur={(e) =>
-              onSave({ commuteMinOverride: e.target.value ? Number(e.target.value) : null })
-            }
+            className="field mt-1.5 w-full py-1 text-[11px]"
+            placeholder="or type a reason…"
+            value={reason}
+            aria-label="Dead reason"
+            onChange={(e) => setReason(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && commit(reason)}
           />
-          <span className="text-[10.5px] text-faint">
-            min{o.commuteMinOverride === null && autoMin !== null ? " (auto)" : ""}
-          </span>
+          <div className="mt-1.5 flex justify-end gap-3">
+            <button className="text-[10.5px] text-muted hover:underline" onClick={() => setAsking(false)}>
+              cancel
+            </button>
+            <button className="text-[10.5px] text-bad hover:underline" onClick={() => commit(reason)}>
+              mark dead
+            </button>
+          </div>
         </div>
-      </td>
-      <td className="px-2 py-2">
-        <textarea
-          rows={2}
-          className="field w-[190px] py-1 text-[11.5px]"
-          placeholder="deposit, who replied…"
-          defaultValue={o.notes}
-          aria-label="Notes"
-          onBlur={(e) => onSave({ notes: e.target.value })}
-        />
-      </td>
-      <td className="whitespace-nowrap px-3 py-2 text-right">
-        {l.phone && (
-          <a
-            href={waLink(l.phone, fillTemplate(template, l))}
-            target="_blank"
-            rel="noreferrer"
-            className="text-accent hover:underline"
-          >
-            WhatsApp ↗
-          </a>
-        )}
-        <button className="ml-3 text-muted hover:underline" onClick={onUntrack}>
-          untrack
+      )}
+      {!asking && o.status === "dead" && (
+        <button
+          className="mt-1 block max-w-[150px] truncate text-left text-[10.5px] text-bad/80 hover:underline"
+          onClick={openPrompt}
+          title={o.deadReason ? `✕ ${o.deadReason} — click to edit` : "Note why this one died"}
+        >
+          ✕ {o.deadReason || "add reason…"}
         </button>
-      </td>
-    </tr>
+      )}
+    </div>
+  );
+}
+
+function ChannelSelect({ o, onSave }: { o: Outreach; onSave: (patch: Partial<Outreach>) => void }) {
+  return (
+    <select
+      className="field w-auto py-1 text-[11.5px]"
+      value={o.channel ?? ""}
+      aria-label="Channel"
+      onChange={(e) => onSave({ channel: (e.target.value || null) as Outreach["channel"] })}
+    >
+      <option value="">—</option>
+      {CHANNELS.map((c) => (
+        <option key={c} value={c}>
+          {OUTREACH_CHANNEL_LABELS[c]}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+function ContactedInput({ o, onSave }: { o: Outreach; onSave: (patch: Partial<Outreach>) => void }) {
+  return (
+    <input
+      type="date"
+      className="field w-[130px] min-w-[130px] py-1 font-mono text-[11px]"
+      value={o.contactedAt?.slice(0, 10) ?? ""}
+      aria-label="Date contacted"
+      onChange={(e) => onSave({ contactedAt: e.target.value || null })}
+    />
+  );
+}
+
+function ViewingInput({ o, onSave }: { o: Outreach; onSave: (patch: Partial<Outreach>) => void }) {
+  return (
+    <input
+      type="datetime-local"
+      className="field w-[170px] min-w-[170px] py-1 font-mono text-[11px]"
+      value={o.viewingAt?.slice(0, 16) ?? ""}
+      aria-label="Viewing appointment"
+      onChange={(e) => onSave({ viewingAt: e.target.value || null })}
+    />
+  );
+}
+
+function AgreedInput({ o, onSave }: { o: Outreach; onSave: (patch: Partial<Outreach>) => void }) {
+  return (
+    <input
+      type="number"
+      className="field mt-1 w-[80px] min-w-[80px] py-1 text-right font-mono text-[11px]"
+      placeholder="agreed"
+      defaultValue={o.agreedRm ?? ""}
+      aria-label="Agreed rent"
+      onBlur={(e) => onSave({ agreedRm: e.target.value ? Number(e.target.value) : null })}
+    />
+  );
+}
+
+function UtilitiesInput({ o, onSave }: { o: Outreach; onSave: (patch: Partial<Outreach>) => void }) {
+  return (
+    <input
+      className="field w-[150px] min-w-[150px] py-1 text-[11.5px]"
+      placeholder="wifi+water incl…"
+      defaultValue={o.utilities ?? ""}
+      aria-label="Utilities"
+      onBlur={(e) => onSave({ utilities: e.target.value.trim() || null })}
+    />
+  );
+}
+
+function CommuteInput({
+  o,
+  autoMin,
+  onSave,
+}: {
+  o: Outreach;
+  autoMin: number | null;
+  onSave: (patch: Partial<Outreach>) => void;
+}) {
+  return (
+    <div className="flex items-center gap-1">
+      <input
+        type="number"
+        className="field w-[62px] min-w-[62px] py-1 text-right font-mono text-[11px]"
+        placeholder={autoMin !== null ? String(autoMin) : "—"}
+        defaultValue={o.commuteMinOverride ?? ""}
+        aria-label="Commute minutes (blank = auto)"
+        title="Auto-computed door-to-door; type to override, clear to go back to auto"
+        onBlur={(e) =>
+          onSave({ commuteMinOverride: e.target.value ? Number(e.target.value) : null })
+        }
+      />
+      <span className="text-[10.5px] text-faint">
+        min{o.commuteMinOverride === null && autoMin !== null ? " (auto)" : ""}
+      </span>
+    </div>
+  );
+}
+
+function NotesInput({
+  o,
+  onSave,
+  wide = false,
+}: {
+  o: Outreach;
+  onSave: (patch: Partial<Outreach>) => void;
+  wide?: boolean;
+}) {
+  return (
+    <textarea
+      rows={2}
+      className={`field py-1 text-[11.5px] ${wide ? "w-[320px] min-w-[320px]" : "w-[190px] min-w-[190px]"}`}
+      placeholder="deposit, who replied…"
+      defaultValue={o.notes}
+      aria-label="Notes"
+      onBlur={(e) => onSave({ notes: e.target.value })}
+    />
   );
 }
 
@@ -484,7 +815,7 @@ function AddressCell({
   };
 
   return (
-    <div className="w-[210px]">
+    <div className="w-[210px] min-w-[210px]">
       <textarea
         rows={2}
         className="field w-full py-1 text-[11.5px]"
@@ -547,6 +878,16 @@ function QueueRow({
 
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-edge/60 bg-ink px-3 py-2.5 first:border-t-0">
+      {l.photos[0] && (
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img
+          src={l.photos[0]}
+          alt=""
+          referrerPolicy="no-referrer"
+          loading="lazy"
+          className="h-10 w-14 shrink-0 rounded-md object-cover"
+        />
+      )}
       <div className="min-w-0 flex-1">
         {l.url ? (
           <a href={l.url} target="_blank" rel="noreferrer" className="block truncate text-[12.5px] font-medium hover:underline">
