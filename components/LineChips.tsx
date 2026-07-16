@@ -10,8 +10,8 @@ export function LineChips({
   hasBus = false,
   busEnabled = false,
   onToggleBus,
-  isoEnabled = false,
-  onToggleIso,
+  heatEnabled = false,
+  onToggleHeat,
 }: {
   lines: RailLine[];
   visible: string[];
@@ -19,8 +19,8 @@ export function LineChips({
   hasBus?: boolean;
   busEnabled?: boolean;
   onToggleBus?: () => void;
-  isoEnabled?: boolean;
-  onToggleIso?: () => void;
+  heatEnabled?: boolean;
+  onToggleHeat?: () => void;
 }) {
   const allOn = visible.length === lines.length;
   return (
@@ -67,21 +67,21 @@ export function LineChips({
           Bus
         </button>
       )}
-      {onToggleIso && (
+      {onToggleHeat && (
         <button
           className="chip font-mono text-[10.5px]"
-          data-on={isoEnabled}
-          onClick={onToggleIso}
-          title="Shade areas within 30 / 45 / 60 min door-to-door of your destination"
+          data-on={heatEnabled}
+          onClick={onToggleHeat}
+          title="Shade the map by door-to-door minutes to your destination"
         >
           <span
             className="inline-block h-[9px] w-[9px] rounded-full border border-white/25"
             style={{
               background: "linear-gradient(135deg,#22a06b,#e7a100,#d64550)",
-              opacity: isoEnabled ? 1 : 0.3,
+              opacity: heatEnabled ? 1 : 0.3,
             }}
           />
-          Zones
+          Heatmap
         </button>
       )}
     </div>

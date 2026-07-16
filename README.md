@@ -7,8 +7,9 @@ address to change it). Usage guide for humans: [HOWTO.md](HOWTO.md).
 
 - **Map**: MapLibre + OpenFreeMap tiles; all 8 rail lines toggleable, drawn from the
   official GTFS feed in their official colors, plus toggleable MRT/LRT feeder-bus
-  routes (headways derived from the schedule) and commute-time zones
-  (30/45/60-min isochrone bands, `lib/isochrone.ts`).
+  routes (headways derived from the schedule) and a travel-time heatmap — every
+  ~275 m cell shaded by door-to-door minutes with a 15–90 min slider that filters
+  instantly (`lib/travelTime.ts`; the surface recomputes only when the pin moves).
 - **Commute**: walk to the nearest stations/stops (real OSRM foot routes, cached) +
   scheduled ride times from GTFS + transfer/wait penalties, Dijkstra over the
   network. Listings near the destination get a plain walking estimate instead.

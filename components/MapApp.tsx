@@ -9,7 +9,12 @@ import {
   type RailData,
   type RailGraphData,
 } from "@/lib/railGraph";
-import { isochroneCells } from "@/lib/isochrone";
+import {
+  HEAT_MAX_MIN,
+  HEAT_MIN_MIN,
+  HEAT_STEP_MIN,
+  travelTimeSurface,
+} from "@/lib/travelTime";
 import { applyFilters, DEFAULT_FILTERS, quantile, type FilterState } from "@/lib/filters";
 import { MapView, type ColorMode, type ListingPoint } from "./MapView";
 import { Sidebar, type SortMode } from "./Sidebar";
@@ -17,8 +22,8 @@ import { DetailPanel } from "./DetailPanel";
 import { LineChips } from "./LineChips";
 import { BUS_KEY, DEFAULT_OFFICE, OFFICE_KEY } from "@/lib/office";
 
-const ISO_KEY = "stay.zones";
-const ISO_BANDS = [30, 45, 60];
+const HEAT_KEY = "stay.zones"; // key kept from the old Zones toggle
+const HEAT_MAX_KEY = "stay.heatmap-max";
 const WIDTH_KEY = "stay.sidebar-width";
 
 export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGraphData }) {
@@ -35,7 +40,8 @@ export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGra
   const [officeLabel, setOfficeLabel] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [busEnabled, setBusEnabled] = useState(true);
-  const [isoEnabled, setIsoEnabled] = useState(false);
+  const [heatEnabled, setHeatEnabled] = useState(false);
+  const [heatMax, setHeatMax] = useState(60);
   const [sidebarWidth, setSidebarWidth] = useState(360);
 
   /* restore office pin + layer preferences */
@@ -48,7 +54,9 @@ export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGra
         setOfficeLabel(label ?? null);
       }
       if (localStorage.getItem(BUS_KEY) === "off") setBusEnabled(false);
-      if (localStorage.getItem(ISO_KEY) === "on") setIsoEnabled(true);
+      if (localStorage.getItem(HEAT_KEY) === "on") setHeatEnabled(true);
+      const hm = Number(localStorage.getItem(HEAT_MAX_KEY));
+      if (hm >= HEAT_MIN_MIN && hm <= HEAT_MAX_MIN) setHeatMax(hm);
       const w = Number(localStorage.getItem(WIDTH_KEY));
       if (w >= 300 && w <= 560) setSidebarWidth(w);
     } catch {}
@@ -66,11 +74,15 @@ export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGra
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
   };
-  const toggleIso = () => {
-    setIsoEnabled((v) => {
-      localStorage.setItem(ISO_KEY, v ? "off" : "on");
+  const toggleHeat = () => {
+    setHeatEnabled((v) => {
+      localStorage.setItem(HEAT_KEY, v ? "off" : "on");
       return !v;
     });
+  };
+  const changeHeatMax = (v: number) => {
+    setHeatMax(v);
+    localStorage.setItem(HEAT_MAX_KEY, String(v));
   };
   const toggleBus = () => {
     setBusEnabled((v) => {
@@ -152,11 +164,11 @@ export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGra
     () => new RailGraph(busEnabled ? graphData : stripBus(graphData)),
     [graphData, busEnabled]
   );
-  const isoData = useMemo(
-    () => (isoEnabled ? isochroneCells(graph, graph.routeToOffice(office), ISO_BANDS) : null),
-    [graph, office, isoEnabled]
-  );
   const routing = useMemo(() => graph.routeToOffice(office), [graph, office]);
+  const heatData = useMemo(
+    () => (heatEnabled ? travelTimeSurface(graph, routing) : null),
+    [graph, routing, heatEnabled]
+  );
   const commutes = useMemo(() => {
     const m = new Map<string, Commute | null>();
     for (const l of listings) {
@@ -284,7 +296,8 @@ export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGra
           selected={selected ? { id: selected.id, lat: selected.lat, lng: selected.lng } : null}
           office={office}
           busVisible={busEnabled}
-          isochrone={isoData}
+          heatmap={heatData}
+          heatmapMax={heatMax}
           onSelect={setSelectedId}
           onOfficeMove={moveOffice}
         />
@@ -302,16 +315,35 @@ export function MapApp({ rail, graphData }: { rail: RailData; graphData: RailGra
                 ☰
               </button>
             )}
-            <LineChips
-              lines={rail.lines}
-              visible={visibleLines}
-              onChange={setVisibleLines}
-              hasBus={(rail.busLines?.length ?? 0) > 0}
-              busEnabled={busEnabled}
-              onToggleBus={toggleBus}
-              isoEnabled={isoEnabled}
-              onToggleIso={toggleIso}
-            />
+            <div className="flex flex-col items-start gap-2">
+              <LineChips
+                lines={rail.lines}
+                visible={visibleLines}
+                onChange={setVisibleLines}
+                hasBus={(rail.busLines?.length ?? 0) > 0}
+                busEnabled={busEnabled}
+                onToggleBus={toggleBus}
+                heatEnabled={heatEnabled}
+                onToggleHeat={toggleHeat}
+              />
+              {heatEnabled && (
+                <div className="pointer-events-auto flex items-center gap-2 rounded-xl border border-edge bg-ink/90 px-2.5 py-2 shadow-lg backdrop-blur">
+                  <span className="whitespace-nowrap font-mono text-[10.5px] text-muted">
+                    ≤ {heatMax} min
+                  </span>
+                  <input
+                    type="range"
+                    min={HEAT_MIN_MIN}
+                    max={HEAT_MAX_MIN}
+                    step={HEAT_STEP_MIN}
+                    value={heatMax}
+                    onChange={(e) => changeHeatMax(Number(e.target.value))}
+                    aria-label="Maximum commute minutes shown on the heatmap"
+                    className="w-36 accent-accent"
+                  />
+                </div>
+              )}
+            </div>
           </div>
           {selected && (
             <DetailPanel

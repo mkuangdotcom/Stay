@@ -30,8 +30,10 @@ interface Props {
   selected: { id: string; lat: number; lng: number } | null;
   office: { lat: number; lng: number };
   busVisible: boolean;
-  /** commute-zone cells (null = layer off) */
-  isochrone: GeoJSON.FeatureCollection | null;
+  /** travel-time surface cells (null = layer off) */
+  heatmap: GeoJSON.FeatureCollection | null;
+  /** hide heatmap cells beyond this many minutes (slider) */
+  heatmapMax: number;
   onSelect: (id: string | null) => void;
   onOfficeMove: (pos: { lat: number; lng: number }) => void;
 }
@@ -90,7 +92,8 @@ export function MapView({
   selected,
   office,
   busVisible,
-  isochrone,
+  heatmap,
+  heatmapMax,
   onSelect,
   onOfficeMove,
 }: Props) {
@@ -99,8 +102,8 @@ export function MapView({
   const officeMarkerRef = useRef<Marker | null>(null);
   const loadedRef = useRef(false);
   // keep latest props readable from stable event handlers and the async load callback
-  const propsRef = useRef({ onSelect, onOfficeMove, listings, colorMode, priceStops, visibleLines, busVisible, isochrone });
-  propsRef.current = { onSelect, onOfficeMove, listings, colorMode, priceStops, visibleLines, busVisible, isochrone };
+  const propsRef = useRef({ onSelect, onOfficeMove, listings, colorMode, priceStops, visibleLines, busVisible, heatmap, heatmapMax });
+  propsRef.current = { onSelect, onOfficeMove, listings, colorMode, priceStops, visibleLines, busVisible, heatmap, heatmapMax };
 
   /* ------------------------- init (once) ------------------------- */
   useEffect(() => {
@@ -152,33 +155,37 @@ export function MapView({
         },
       });
 
-      /* commute zones: translucent cells beneath everything else */
-      map.addSource("isochrone", {
+      /* travel-time heatmap: translucent cells beneath everything else;
+         the slider only moves this layer's filter — the surface stays put */
+      map.addSource("travel-time", {
         type: "geojson",
         data: { type: "FeatureCollection", features: [] },
       });
       map.addLayer(
         {
-          id: "isochrone-fill",
+          id: "travel-time-fill",
           type: "fill",
-          source: "isochrone",
+          source: "travel-time",
+          filter: ["<=", ["get", "m"], propsRef.current.heatmapMax],
           paint: {
             "fill-color": [
-              "match",
-              ["get", "band"],
-              30, GOOD,
-              45, MID,
-              60, BAD,
-              "#888888",
+              "interpolate",
+              ["linear"],
+              ["get", "m"],
+              15, GOOD,
+              40, MID,
+              65, BAD,
+              90, "#7f1d2b",
             ],
-            "fill-opacity": 0.14,
+            "fill-opacity": 0.22,
+            "fill-antialias": false,
           },
         },
         "rail-casing"
       );
-      if (propsRef.current.isochrone) {
-        (map.getSource("isochrone") as maplibregl.GeoJSONSource).setData(
-          propsRef.current.isochrone
+      if (propsRef.current.heatmap) {
+        (map.getSource("travel-time") as maplibregl.GeoJSONSource).setData(
+          propsRef.current.heatmap
         );
       }
 
@@ -451,10 +458,16 @@ export function MapView({
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !loadedRef.current) return;
-    (map.getSource("isochrone") as maplibregl.GeoJSONSource | undefined)?.setData(
-      isochrone ?? { type: "FeatureCollection", features: [] }
+    (map.getSource("travel-time") as maplibregl.GeoJSONSource | undefined)?.setData(
+      heatmap ?? { type: "FeatureCollection", features: [] }
     );
-  }, [isochrone]);
+  }, [heatmap]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !loadedRef.current || !map.getLayer("travel-time-fill")) return;
+    map.setFilter("travel-time-fill", ["<=", ["get", "m"], heatmapMax]);
+  }, [heatmapMax]);
 
   useEffect(() => {
     const map = mapRef.current;

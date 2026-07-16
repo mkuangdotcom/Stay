@@ -24,8 +24,9 @@ of the sidebar signs you out.
   are exact.
 - **Rail lines** are drawn in their official colors. The chips at the top toggle
   each line, **Bus** toggles the MRT/LRT feeder-bus network (on the map *and* in
-  the commute math), and **Zones** shades everywhere within 30 / 45 / 60 min
-  door-to-door of your destination — green / amber / red.
+  the commute math), and **Heatmap** shades the whole map by door-to-door minutes
+  to your destination — green (fast) through amber to red (slow). A slider appears
+  under the chips: drag it to hide everything beyond, say, 30 minutes.
 - The **yellow pulsing pin** is your destination (default: First Avenue,
   Bandar Utama). **Drag it** anywhere, or type an address in the sidebar's
   *"Search address or place…"* box — every commute recalculates instantly.
@@ -127,7 +128,7 @@ listing's detail card too).
 
 ## A good hunting loop
 
-1. Turn on **Zones**, set **Door to door ≤ 45**, **Posted ≤ 3d**, your price cap,
+1. Turn on **Heatmap** (slider ≤ 45), set **Door to door ≤ 45**, **Posted ≤ 3d**, your price cap,
    and **I am ♀/♂**.
 2. Sort by *Shortest commute*. Star anything promising.
 3. Open the **Tracker** — your stars are queued under *not contacted yet*.
